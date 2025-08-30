@@ -1,0 +1,28 @@
+/* run-button.component.scss */
+.run-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  transition: all 0.2s ease-in-out;
+}
+
+.run-btn:hover {
+  background: linear-gradient(135deg, #43a047, #57b05e);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.16);
+}
+
+.run-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+}

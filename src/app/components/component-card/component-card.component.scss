@@ -1,0 +1,144 @@
+.component-card {
+  display: flex;
+  align-items: center;
+  width: 300px; 
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+}
+
+.component-card.selected {
+  border-color: #4caf50;
+  background: #f0fff4;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+  color: #333;
+}
+
+.info-btn-wrapper {
+  position: relative;
+
+  .info-btn {
+    background: #1976d2;
+    color: #fff;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &:hover { background: #0d47a1; }
+  }
+
+  .tooltip-text {
+    visibility: hidden;
+    background: #333;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    font-size: 12px;
+  }
+
+  &:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+.component-card-wrapper {
+  position: relative; /* הכרחי עבור ה-expandable */
+}
+
+.expandable {
+  position: absolute;  /* מציף מעל הכרטיסים האחרים */
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  padding: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 10; 
+}
+
+.test-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #333;
+}
+
+.test-name a,
+.test-name span {
+  cursor: pointer;
+  color: #333;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.test-name a:hover,
+.test-name span:hover {
+  color: #1976d2; /* כחול בהובר */
+}
+
+.test-owner {
+  color: #888;
+  font-size: 13px;
+}
+
+.test-tag {
+  background: #e0f7fa;
+  color: #00796b;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.expand-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.arrow {
+  display: inline-block;
+  transition: transform 0.3s ease;
+  font-size: 16px;
+  color: #555;
+}
+
+.arrow.open {
+  transform: rotate(90deg);
+}

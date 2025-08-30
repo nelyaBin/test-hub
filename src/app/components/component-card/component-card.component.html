@@ -1,0 +1,50 @@
+<div class="component-card-wrapper">
+  <div
+    class="component-card"
+    [class.selected]="data.selected"
+    (click)="toggleSelection()" 
+  >
+    <!-- חץ בצד הכי שמאל (רק ל-customs) -->
+    <button
+      *ngIf="!isPreset && data.tests.length"
+      class="expand-btn"
+      (click)="toggleExpand(); $event.stopPropagation()"
+    >
+      <span class="arrow" [class.open]="data.isExpanded">▶</span>
+    </button>
+
+    <!-- אחריו ה-checkbox -->
+    <input
+      type="checkbox"
+      [checked]="data.selected"
+      (click)="$event.stopPropagation()"
+      (change)="toggleSelection()"
+    />
+
+    <!-- כותרת -->
+    <span class="title">{{ data.componentName }}</span>
+
+    <!-- כפתור info בצד ימין -->
+    <span *ngIf="data.infoText" class="info-btn-wrapper">
+      <button class="info-btn" (click)="$event.stopPropagation()">i</button>
+      <span class="tooltip-text">{{ data.infoText }}</span>
+    </span>
+  </div>
+
+  <!-- רשימת טסטים (רק ל-customs) -->
+  <div *ngIf="!isPreset && data.isExpanded" class="expandable">
+    <div *ngFor="let test of data.tests" class="test-item">
+      <input
+        type="checkbox"
+        [checked]="test.selected"
+        (change)="toggleTestSelection(test)"
+      />
+      <span class="test-name">
+        <a *ngIf="test.link" [href]="test.link" target="_blank">{{ test.testName }}</a>
+        <span *ngIf="!test.link">{{ test.testName }}</span>
+      </span>
+      <span class="test-owner">({{ test.testOwner }})</span>
+      <span class="test-tag">[{{ test.testTag }}]</span>
+    </div>
+  </div>
+</div>
