@@ -1,0 +1,35 @@
+[
+  {
+    "componentName": "Login Preset",
+    "isPreset": true,
+    "group": ["auth", "ui"],
+    "infoText": "This is a preset for login functionality",
+    "tests": []
+  },
+  {
+    "componentName": "Registration Preset",
+    "isPreset": true,
+    "group": ["auth", "ui"],
+    "infoText": "Preset for registration flows",
+    "tests": []
+  },
+  {
+    "componentName": "Login Component",
+    "isPreset": false,
+    "group": ["auth"],
+    "infoText": "This is a custom component",
+    "tests": [
+      { "testName": "Check Login Button", "testOwner": "Alice", "testTag": "auth", "selected": false },
+      { "testName": "Check Password Field", "testOwner": "Bob", "testTag": "auth", "selected": false }
+    ]
+  },
+  {
+    "componentName": "Profile Component",
+    "isPreset": false,
+    "group": ["user"],
+    "infoText": "Custom component for profile",
+    "tests": [
+      { "testName": "Check Profile Picture", "testOwner": "Charlie", "testTag": "user", "selected": false }
+    ]
+  }
+]

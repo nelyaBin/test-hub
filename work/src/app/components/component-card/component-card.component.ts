@@ -13,7 +13,7 @@ import { ComponentDataService } from "../../services/component-data.service";
 export class ComponentCardComponent {
   @Input() data!: ComponentData;
   @Input() isPreset: boolean = false;
-  @Input() allData: ComponentData[] = [];
+  @Input() allData: ComponentData[] = []; // חדש: כל הדאטה נטען מה-JSON
 
   constructor(private service: ComponentDataService) {}
 
@@ -22,15 +22,12 @@ export class ComponentCardComponent {
     this.data.selected = newState;
 
     if (!this.isPreset) {
-      // אם זה custom, נעדכן את הטסטים שלו
+      // תמיד נעדכן טסטים ב-custom אם זה custom
       this.data.tests.forEach((test) => (test.selected = newState));
-
-      // אחרי שינוי ב-custom, נעדכן את כל ה-Presets הקשורים אליו
-      this.updatePresetsState();
     }
 
     if (this.isPreset) {
-      // אם זה Preset, מסנכרנים את ה-customs שלו
+      // מסנכרן גם את הטסטים של custom לפי group של ה-Preset
       this.service.syncGroupSelection(this.data.group, newState, this.allData);
     }
   }
@@ -38,40 +35,23 @@ export class ComponentCardComponent {
   toggleTestSelection(test: Test) {
     test.selected = !test.selected;
     this.data.selected = this.data.tests.every((t) => t.selected);
-
-    if (!this.isPreset) {
-      // אם זה custom, נעדכן את ה-Presets אחרי שינוי בטסט
-      this.updatePresetsState();
-    }
   }
 
   toggleExpand() {
     this.data.isExpanded = !this.data.isExpanded;
   }
 
+  // מחזיר true אם כל הטסטים מסומנים
   get allTestsSelected(): boolean {
     return !!this.data.tests?.length
       ? this.data.tests.every((t) => !!t.selected)
       : !!this.data.selected;
   }
 
+  // מחזיר true אם חלק מהטסטים מסומנים אבל לא כולם
   get partialSelected(): boolean {
     if (!this.data.tests?.length) return false;
     const selectedCount = this.data.tests.filter(t => t.selected).length;
     return selectedCount > 0 && selectedCount < this.data.tests.length;
-  }
-
-  // 🔹 פונקציה חדשה – מעדכנת את מצב כל ה-Presets בהתאם ל־custom/טסטים
-  private updatePresetsState() {
-    this.allData
-      .filter(d => d.isPreset)
-      .forEach(preset => {
-        const affectedCustoms = this.allData.filter(
-          c => !c.isPreset && c.group.some(g => preset.group.includes(g))
-        );
-
-        // אם כל ה-customs המושפעים מה-Preset מסומנים, ה-Preset מסומן
-        preset.selected = affectedCustoms.every(c => c.selected);
-      });
   }
 }
