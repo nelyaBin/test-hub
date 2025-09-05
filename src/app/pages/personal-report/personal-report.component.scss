@@ -1,22 +1,28 @@
 @import "../../../styles.scss";
+
 .personal-report-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 30px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Inter", sans-serif;
+  background: $color-bg;
+  color: $color-text;
 
-  h2 {
-    font-size: 28px;
-    font-weight: 600;
-    margin-bottom: 20px;
-    color: #333;
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: $color-text;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    transition: color 0.3s ease;
   }
 
   .search-container {
     display: flex;
     gap: 12px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     width: 100%;
     max-width: 500px;
 
@@ -34,37 +40,104 @@
         box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
       }
     }
+
+    .button {
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, $color-secondary, $color-primary);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+      }
+    }
   }
 
-  .error-message {
-    color: #ff4d4f;
-    font-size: 16px;
+  .toggle-wrapper {
+    display: flex;
+    justify-content: center;
     margin-bottom: 20px;
-    text-align: center;
-    max-width: 500px;
+
+    .toggle-switch {
+      position: relative;
+      display: flex;
+      width: 260px;
+      height: 50px;
+      background: $color-bg;
+      border: 1px solid $color-border;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px $color-shadow;
+      cursor: pointer;
+      overflow: hidden;
+
+      .toggle-option {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 500;
+        color: #ccc;
+        z-index: 2;
+        transition: color 0.3s ease;
+
+        &.selected {
+          font-weight: 600;
+          color: #fff;
+        }
+      }
+
+      .toggle-slider {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: 4px;
+        width: calc(50% - 8px);
+        background: linear-gradient(135deg, $color-secondary, $color-primary);
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(25, 118, 210, 0.3);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1;
+      }
+
+      &.active .toggle-slider {
+        transform: translateX(calc(100% + 8px));
+      }
+    }
   }
 
   .iframe-wrapper {
-    width: 100%; // עכשיו תופס את כל רוחב המסך
-    height: 800px; // גובה קצת יותר גדול
-    border: 1px solid #ccc;
+    width: 100%;
+    height: 800px;
+    border: 1px solid $color-border;
     border-radius: 10px;
     overflow: hidden;
 
     iframe {
       width: 100%;
       height: 100%;
-      border: none; // מסיר את הגבול של ה-iframe
+      border: none;
     }
   }
 
-  .section-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: $color-text;
-    letter-spacing: 0.5px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-    transition: color 0.3s ease;
+  .error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    background: linear-gradient(135deg, $color-error-bg, $color-error-bg-dark);
+    color: $color-error-text;
+    border-radius: 12px;
+    padding: 40px;
+    font-family: "Inter", sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    margin-bottom: 20px;
   }
 }

@@ -22,20 +22,24 @@
   color: $color-text;
   letter-spacing: 0.5px;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  transition: color 0.3s ease;
+  position: relative;
+  cursor: default;
 
-  &:after {
+  &::after {
     content: "";
     display: block;
-    width: 80px;
+    position: absolute;
+    left: 0;
+    bottom: -6px;
+    width: 60px; // ברירת מחדל
     height: 3px;
-    margin-top: 6px;
     border-radius: 2px;
-    background: linear-gradient(
-      90deg,
-      $color-secondary,
-      $color-bg
-    ); // צבע כחול יפה
+    background: linear-gradient(90deg, $color-secondary, $color-bg);
+    transition: width 0.25s ease-in-out; // מהיר יותר
+  }
+
+  &:hover::after {
+    width: 100px; // התארכות בהובר
   }
 }
 

@@ -13,6 +13,15 @@
     </button>
   </div>
 
+  <!-- הצגת הטוגל רק אחרי שהמשתמש הזין מזהה -->
+  <div class="toggle-wrapper" *ngIf="showToggle">
+    <div class="toggle-switch" [class.active]="selected === 'lighthouse'" (click)="toggleView()">
+      <div class="toggle-option" [class.selected]="selected === 'report'">Report</div>
+      <div class="toggle-option" [class.selected]="selected === 'lighthouse'">Lighthouse</div>
+      <div class="toggle-slider"></div>
+    </div>
+  </div>
+
   <!-- הודעת שגיאה -->
   <div class="error-message" *ngIf="errorMessage">
     {{ errorMessage }}

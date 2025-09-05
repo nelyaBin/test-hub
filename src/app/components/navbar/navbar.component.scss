@@ -1,63 +1,83 @@
-@import '../../../styles.scss';
-
+@import "../../../styles.scss";
 .navbar {
   display: flex;
-  justify-content: center;
-  background-color: $color-bg; // רקע Dark Mode
-  padding: 15px 0;
-  font-family: 'Inter', sans-serif;
+  align-items: center;
+  justify-content: center; // ממורכז
+  background-color: $color-bg;
+  padding: 0 24px;
+  font-family: "Inter", sans-serif;
   position: sticky;
   top: 0;
+  height: 60px; // גובה ה-navbar
   z-index: 1000;
-  box-shadow: 0 2px 8px $color-shadow; // צל עדין מותאם ל-Dark Mode
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  .logo-container {
+    position: absolute;
+    left: 24px; // נשאר משמאל
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+
+    .logo {
+      height: 120%; // כמעט כל גובה ה-navbar
+      width: auto;
+      cursor: pointer;
+      transition: transform 0.2s ease-in-out;
+
+      &:hover {
+        transform: scale(1.1); // גדל קלות בהובר
+      }
+    }
+  }
 
   ul {
     list-style: none;
     display: flex;
-    gap: 50px;
+    gap: 40px;
     margin: 0;
     padding: 0;
-  }
 
-  li {
-    position: relative;
+    li {
+      position: relative;
 
-    a {
-      text-decoration: none;
-      color: #ccc; // טקסט בהיר לקריאות על רקע כהה
-      font-weight: 600;
-      font-size: 16px;
-      padding: 8px 0;
-      transition: all 0.3s ease;
-      display: inline-block;
+      a {
+        text-decoration: none;
+        color: $color-text;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 6px 0;
+        transition: all 0.3s ease;
 
-      &:hover {
-        color: $color-primary; // כחול בהיר באובר
+        &:hover {
+          color: $color-primary;
+        }
+
+        &::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          bottom: -4px;
+          height: 3px;
+          width: 0%;
+          background-color: $color-primary;
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
       }
 
-      &::after {
-        content: '';
-        position: absolute;
-        left: 0;
-        bottom: 0;
-        height: 3px;
-        width: 0%;
-        background-color: $color-primary; // קו תחתון כחול
-        border-radius: 3px;
-        transition: width 0.3s ease;
+      &:hover a::after {
+        width: 100%;
       }
-    }
 
-    &:hover a::after {
-      width: 100%;
-    }
+      &.active a {
+        color: $color-primary;
+      }
 
-    &.active a {
-      color: $color-primary; // כחול בעמוד הנוכחי
-    }
-
-    &.active a::after {
-      width: 100%;
+      &.active a::after {
+        width: 100%;
+      }
     }
   }
 }
