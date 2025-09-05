@@ -7,10 +7,24 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
   styleUrls: ['./dev-status.component.scss']
 })
 export class DevStatusComponent {
+  selected: 'report' | 'lighthouse' = 'report';
   htmlFileUrl: SafeResourceUrl;
 
   constructor(private sanitizer: DomSanitizer) {
-    // 👇 יחסית ל-root של Angular (עובד תמיד)
-    this.htmlFileUrl = this.sanitizer.bypassSecurityTrustResourceUrl('assets/sample-report.html');
+    this.htmlFileUrl = this.getIframeUrl();
+  }
+
+  toggleView(): void {
+    this.selected = this.selected === 'report' ? 'lighthouse' : 'report';
+    this.htmlFileUrl = this.getIframeUrl();
+  }
+
+  private getIframeUrl(): SafeResourceUrl {
+    const url =
+      this.selected === 'report'
+        ? 'assets/sample-report.html'
+        : 'assets/iatay.html';
+
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 }

@@ -1,5 +1,19 @@
 <div class="dev-status-page">
+  <!-- Toggle Switch -->
+  <div class="toggle-wrapper">
+    <div 
+      class="toggle-switch" 
+      [class.active]="selected === 'lighthouse'" 
+      (click)="toggleView()"
+    >
+      <div class="toggle-option" [class.selected]="selected === 'report'">Report</div>
+      <div class="toggle-option" [class.selected]="selected === 'lighthouse'">Lighthouse</div>
+      <div class="toggle-slider"></div>
+    </div>
+  </div>
+
+  <!-- Iframe -->
   <div class="iframe-wrapper">
-    <iframe [src]="htmlFileUrl" frameborder="0" width="100%" height="800px"></iframe>
+    <iframe [src]="htmlFileUrl" frameborder="0"></iframe>
   </div>
 </div>

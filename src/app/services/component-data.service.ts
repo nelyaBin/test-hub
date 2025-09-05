@@ -1,7 +1,8 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { ComponentData, Test } from '../models/component-data.model';
+import { mockData } from '../../assets/data/components';
 
 @Injectable({
   providedIn: 'root'
@@ -9,6 +10,9 @@ import { ComponentData, Test } from '../models/component-data.model';
 export class ComponentDataService {
   // Signal שמחזיק את כל הנתונים
   private allComponentsSignal = signal<ComponentData[]>([]);
+  
+  // משתנה סטטי של ComponentData במקום קריאה לJSON
+  
   
   // Computed signals לסינון
   readonly presets = computed(() => 
@@ -23,8 +27,9 @@ export class ComponentDataService {
 
   constructor(private http: HttpClient) {}
 
+  // עכשיו מחזיר את המשתנה הסטטי במקום קריאה לJSON
   getComponents(): Observable<ComponentData[]> {
-    return this.http.get<ComponentData[]>('assets/data/components.json');
+    return of([...mockData]); // יוצר עותק כדי למנוע שינוי במקור
   }
 
   // פונקציה לטעינה ראשונית של הנתונים לSignal

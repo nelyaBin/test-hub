@@ -1,11 +1,66 @@
 .dev-status-page {
   padding: 20px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
+
+  .toggle-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: flex;
+    width: 260px;
+    height: 50px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    overflow: hidden;
+
+    .toggle-option {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 500;
+      color: #666;
+      z-index: 2;
+      transition: color 0.3s ease;
+
+      &.selected {
+        font-weight: 600;
+        color: #fff; // טקסט לבן על הריבוע הכחול
+      }
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 4px;
+      width: calc(50% - 8px); /* חצי מהכפתור, עם שוליים */
+      background: linear-gradient(135deg, #42a5f5, #1976d2);
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(25, 118, 210, 0.3);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1;
+    }
+
+    &.active .toggle-slider {
+      transform: translateX(calc(100% + 8px));
+    }
+  }
+
 
   .iframe-wrapper {
     margin-top: 20px;
     width: 100%;
-    height: 80vh; // גובה לפי הצורך
+    height: 80vh;
+
     iframe {
       width: 100%;
       height: 100%;
