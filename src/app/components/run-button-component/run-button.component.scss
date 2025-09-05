@@ -1,4 +1,4 @@
-/* run-button.component.scss */
+/* run-button.component.scss - Dark Mode */
 .run-btn {
   display: inline-flex;
   align-items: center;
@@ -8,21 +8,21 @@
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  background: linear-gradient(135deg, #2e7d32, #388e3c); /* ירוק כהה */
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* צל יותר מודגש ל-dark mode */
   transition: all 0.2s ease-in-out;
 }
 
 .run-btn:hover {
-  background: linear-gradient(135deg, #43a047, #57b05e);
+  background: linear-gradient(135deg, #1b5e20, #2e7d32); /* ירוק כהה יותר */
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.16);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
 }
 
 .run-btn:active {
   transform: translateY(0);
-  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
 }

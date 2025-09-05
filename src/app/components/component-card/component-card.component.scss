@@ -1,39 +1,46 @@
+@import "../../../styles.scss"; // שנה לנתיב האמיתי שלך
+
 .component-card {
   display: flex;
   align-items: center;
-  width: 300px; 
+  width: 300px;
   gap: 10px;
   padding: 14px 18px;
   border-radius: 12px;
-  border: 1px solid #e0e0e0;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  border: 1px solid $color-border;
+  background: $color-card-bg;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   cursor: pointer;
   transition: all 0.2s ease-in-out;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px #173e41;
   }
 }
 
 .component-card.selected {
-  border-color: #4caf50;
-  background: #f0fff4;
+  border-color: #276268;
+  background: radial-gradient(
+    circle at center,
+    rgba(33, 84, 89, 0.7) 100%,
+    #215459 100%
+  );
+  box-shadow: 0 4px 12px #173e41;
 }
 
 .title {
   font-size: 16px;
   font-weight: 600;
   flex: 1;
-  color: #333;
+  color: $color-text;
 }
 
 .info-btn-wrapper {
   position: relative;
 
   .info-btn {
-    background: #1976d2;
+    background: $color-primary;
     color: #fff;
     border-radius: 50%;
     width: 24px;
@@ -44,13 +51,15 @@
     justify-content: center;
     align-items: center;
 
-    &:hover { background: #0d47a1; }
+    &:hover {
+      background: darken($color-primary, 10%);
+    }
   }
 
   .tooltip-text {
     visibility: hidden;
-    background: #333;
-    color: #fff;
+    background: $color-border;
+    color: rgb(255, 255, 255);
     padding: 6px 10px;
     border-radius: 6px;
     position: absolute;
@@ -73,16 +82,16 @@
 }
 
 .expandable {
-  position: absolute;  /* מציף מעל הכרטיסים האחרים */
+  position: absolute;
   top: 100%;
   left: 0;
   width: 100%;
-  background: #fafafa;
+  background: #1e1e1e;
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid $color-border;
   padding: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  z-index: 10; 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  z-index: 10;
 }
 
 .test-item {
@@ -91,30 +100,30 @@
   gap: 8px;
   margin-bottom: 6px;
   font-size: 14px;
-  color: #333;
+  color: $color-text;
 }
 
 .test-name a,
 .test-name span {
   cursor: pointer;
-  color: #333;
+  color: $color-text;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .test-name a:hover,
 .test-name span:hover {
-  color: #1976d2; /* כחול בהובר */
+  color: $color-primary; /* כחול כהה יותר להובר */
 }
 
 .test-owner {
-  color: #888;
+  color: #aaa;
   font-size: 13px;
 }
 
 .test-tag {
-  background: #e0f7fa;
-  color: #00796b;
+  background: darken($color-bg, 10%);
+  color: #90caf9;
   padding: 2px 6px;
   border-radius: 6px;
   font-size: 12px;
@@ -136,12 +145,13 @@
   display: inline-block;
   transition: transform 0.3s ease;
   font-size: 16px;
-  color: #555;
+  color: #ccc;
 }
 
 .arrow.open {
   transform: rotate(90deg);
 }
+
 /* --- אינדיקטור partial selection --- */
 .partial-indicator {
   display: inline-block;
@@ -167,5 +177,180 @@
   100% {
     transform: scale(1);
     opacity: 0.9;
+  }
+}
+
+.custom-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .checkmark {
+    width: 22px;
+    height: 22px;
+    background: #2b2b43;
+    border: 2px solid #42a5f5;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+
+    &::after {
+      content: "✔";
+      font-size: 14px;
+      color: white;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.2s ease;
+    }
+  }
+
+  input:checked ~ .checkmark {
+    background: linear-gradient(135deg, #42a5f5, #1976d2);
+    border-color: transparent;
+    transform: scale(1.05);
+    animation: pop 0.3s ease;
+  }
+
+  input:checked ~ .checkmark::after {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.7);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+.info-btn-wrapper {
+  position: relative;
+  display: inline-block;
+
+  .info-btn {
+    background: linear-gradient(135deg, #42a5f5, #1976d2);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+
+    .icon {
+      position: relative;
+      z-index: 2;
+    }
+
+    // זוהר בהובר
+    &:hover {
+      transform: translateY(-2px) scale(1.1);
+      box-shadow: 0 6px 14px rgba(66, 165, 245, 0.6),
+        0 0 10px rgba(25, 118, 210, 0.8);
+    }
+
+    // אפקט גלים בלחיצה
+    &:active {
+      transform: scale(0.95);
+    }
+
+    // ripple animation effect
+    &:after {
+      content: "";
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.2);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      border-radius: 50%;
+      transition: transform 0.4s ease;
+      z-index: 1;
+    }
+
+    &:active:after {
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  .tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    position: absolute;
+    bottom: 140%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    white-space: nowrap;
+    transition: all 0.3s ease;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  &:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 35%;
+  transition: background-color 0.2s ease-in-out;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .expand-icon {
+    width: 28px;
+    height: 28px;
+    color: $color-primary; 
+    transform: rotate(90deg);
+    transition: transform 0.3s ease, color 0.2s ease;
+
+    &.open {
+      transform: rotate(180deg);
+      color: lighten($color-primary, 10%);
+    }
   }
 }

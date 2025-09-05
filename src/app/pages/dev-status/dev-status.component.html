@@ -1,19 +1,24 @@
 <div class="dev-status-page">
   <!-- Toggle Switch -->
   <div class="toggle-wrapper">
-    <div 
-      class="toggle-switch" 
-      [class.active]="selected === 'lighthouse'" 
-      (click)="toggleView()"
-    >
+    <div class="toggle-switch" [class.active]="selected === 'lighthouse'" (click)="toggleView()">
       <div class="toggle-option" [class.selected]="selected === 'report'">Report</div>
       <div class="toggle-option" [class.selected]="selected === 'lighthouse'">Lighthouse</div>
       <div class="toggle-slider"></div>
     </div>
   </div>
 
-  <!-- Iframe -->
+  <!-- Iframe או הודעת שגיאה -->
   <div class="iframe-wrapper">
-    <iframe [src]="htmlFileUrl" frameborder="0"></iframe>
+    <ng-container *ngIf="fileExists; else errorBlock">
+      <iframe *ngIf="htmlFileUrl" [src]="htmlFileUrl" frameborder="0"></iframe>
+    </ng-container>
+
+    <ng-template #errorBlock>
+      <div class="error-message">
+        <h2>Oops!</h2>
+        <p>הדוח המבוקש לא נמצא. ודא שהקובץ קיים בתיקיית assets.</p>
+      </div>
+    </ng-template>
   </div>
 </div>

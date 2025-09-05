@@ -1,13 +1,15 @@
+@import '../../../styles.scss';
+
 .navbar {
   display: flex;
   justify-content: center;
-  background-color: #ffffff; // לבן, מותאם לרקע האתר
+  background-color: $color-bg; // רקע Dark Mode
   padding: 15px 0;
   font-family: 'Inter', sans-serif;
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08); // צל עדין
+  box-shadow: 0 2px 8px $color-shadow; // צל עדין מותאם ל-Dark Mode
 
   ul {
     list-style: none;
@@ -22,7 +24,7 @@
 
     a {
       text-decoration: none;
-      color: #555; // אפור כהה לקריאות
+      color: #ccc; // טקסט בהיר לקריאות על רקע כהה
       font-weight: 600;
       font-size: 16px;
       padding: 8px 0;
@@ -30,7 +32,7 @@
       display: inline-block;
 
       &:hover {
-        color: #1976d2; // כחול מודגש באובר
+        color: $color-primary; // כחול בהיר באובר
       }
 
       &::after {
@@ -40,7 +42,7 @@
         bottom: 0;
         height: 3px;
         width: 0%;
-        background-color: #1976d2; // הקו הכחול שמתחת
+        background-color: $color-primary; // קו תחתון כחול
         border-radius: 3px;
         transition: width 0.3s ease;
       }
@@ -51,7 +53,7 @@
     }
 
     &.active a {
-      color: #1976d2; // כחול בהיר בעמוד הנוכחי
+      color: $color-primary; // כחול בעמוד הנוכחי
     }
 
     &.active a::after {

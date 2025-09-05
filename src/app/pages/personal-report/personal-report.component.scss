@@ -1,9 +1,10 @@
+@import "../../../styles.scss";
 .personal-report-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 30px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 
   h2 {
     font-size: 28px;
@@ -18,40 +19,19 @@
     margin-bottom: 15px;
     width: 100%;
     max-width: 500px;
-    
+
     .search-input {
       flex: 1;
       padding: 10px 15px;
       border-radius: 8px;
-      border: 1px solid #ccc;
+      border: 1px solid $color-border;
       font-size: 16px;
       transition: all 0.2s;
-      
+
       &:focus {
         outline: none;
-        border-color: #007bff;
+        border-color: $color-primary;
         box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
-      }
-    }
-
-    .search-button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      }
-      
-      &:active {
-        transform: translateY(0);
-        box-shadow: none;
       }
     }
   }
@@ -65,8 +45,8 @@
   }
 
   .iframe-wrapper {
-    width: 100%;       // עכשיו תופס את כל רוחב המסך
-    height: 800px;     // גובה קצת יותר גדול
+    width: 100%; // עכשיו תופס את כל רוחב המסך
+    height: 800px; // גובה קצת יותר גדול
     border: 1px solid #ccc;
     border-radius: 10px;
     overflow: hidden;
@@ -74,7 +54,17 @@
     iframe {
       width: 100%;
       height: 100%;
-      border: none;   // מסיר את הגבול של ה-iframe
+      border: none; // מסיר את הגבול של ה-iframe
     }
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: $color-text;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    transition: color 0.3s ease;
   }
 }
