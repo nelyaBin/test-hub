@@ -62,6 +62,17 @@
 
   <!-- Run button -->
   <div class="button-wrapper">
-    <button class="button" (click)="runAll()">Run</button>
+    <button
+      class="button"
+      (click)="runAll()"
+      [disabled]="!hasSelectedTests()"
+      [title]="
+        !hasSelectedTests()
+          ? 'Select at least one test, preset, or custom to enable running.'
+          : ''
+      "
+    >
+      Run
+    </button>
   </div>
 </div>

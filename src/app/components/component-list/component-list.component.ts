@@ -44,40 +44,46 @@ export class ComponentListComponent implements OnInit {
   onSelectionChanged(component: ComponentData) {
     component.selected = !component.selected;
   }
+  
+  hasSelectedTests(): boolean {
+    return [...this.presets, ...this.custom].some(
+      (card) => card.selected || card.tests.some((test) => test.selected)
+    );
+  }
 
   async runAll() {
-    const reqUrl = 'https://example.com/run'; // החלף ל-URL שלך
+    const reqUrl = "https://example.com/run"; // החלף ל-URL שלך
 
     // אוספים את כל testtags של הטסטים המסומנים
     const allSelectedTestsTags = new Set<string>();
-    [...this.presets, ...this.custom].forEach(card => {
-      card.tests.forEach(test => {
+    [...this.presets, ...this.custom].forEach((card) => {
+      card.tests.forEach((test) => {
         if (test.selected) allSelectedTestsTags.add(test.testTag);
       });
     });
 
     // יוצרים מחרוזת מופרדת ב-| מכל הטאגים הייחודיים
     const testTagsString = Array.from(allSelectedTestsTags)
-      .map(tag => `@${tag}`)
-      .join('|');
+      .map((tag) => `@${tag}`)
+      .join("|");
 
     const body = {
       automationUrl: this.atlasUrl,
-      testtags: testTagsString
+      testtags: testTagsString,
     };
 
     try {
       const res = await fetch(reqUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
-      console.log('POST sent successfully:', data);
+      console.log("POST sent successfully:", data);
     } catch (err) {
-      console.error('Error sending POST:', err);
+      console.error("Error sending POST:", err);
     }
   }
 }

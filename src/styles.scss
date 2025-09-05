@@ -28,7 +28,6 @@ app-root {
   font-family: "Inter", sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease; /* למעבר חלק */
 }
-
 .button-wrapper {
   display: flex;
   justify-content: center;
@@ -46,18 +45,67 @@ app-root {
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.5);
+  position: relative; // חשוב עבור ה-tooltip
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px $button-shadow;
-    background: linear-gradient(135deg, lighten($color-secondary, 10%), lighten($color-primary, 10%));
+    background: linear-gradient(
+      135deg,
+      lighten($color-secondary, 10%),
+      lighten($color-primary, 10%)
+    );
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(0);
     box-shadow: 0 4px 12px $button-shadow;
   }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    background: linear-gradient(135deg, #a0a0a0, #888);
+
+    &::after {
+      content: 'Select at least one test, preset, or custom to enable running.';
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 10;
+    }
+
+    &:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
 }
+
+
+// Keyframes לאנימציית tooltip
+@keyframes tooltipFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+
 
 .search-bar {
   display: flex;
