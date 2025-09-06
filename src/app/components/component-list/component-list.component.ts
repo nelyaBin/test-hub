@@ -23,6 +23,8 @@ export class ComponentListComponent implements OnInit {
   toastMessage: string | null = null;
   toastType: "success" | "error" = "success";
 
+  lastRunId: string | null = null; // מזהה יוניקי אחרון
+
   constructor(private dataService: ComponentDataService) {}
 
   ngOnInit() {
@@ -55,24 +57,37 @@ export class ComponentListComponent implements OnInit {
     );
   }
 
-  async runAll() {
-    const reqUrl = "https://example.com/run"; // החלף ל-URL שלך
+  private generateUUID(length: number = 10): string {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let uuid = "";
+    for (let i = 0; i < length; i++) {
+      uuid += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return uuid;
+  }
 
+  async runAll() {
+    if (!this.hasSelectedTests()) return;
+
+    const reqUrl = "https://example.com/run"; // החלף ל-URL שלך
     const allSelectedTestsTags = new Set<string>();
     [...this.presets, ...this.custom].forEach((card) => {
       card.tests.forEach((test) => {
         if (test.selected) allSelectedTestsTags.add(test.testTag);
       });
     });
-
     const testTagsString = Array.from(allSelectedTestsTags)
       .map((tag) => `@${tag}`)
       .join("|");
+
+    // צור מזהה יוניקי חדש
+    this.lastRunId = this.generateUUID(10);
 
     const body = {
       automationUrl: this.atlasUrl,
       testtags: testTagsString,
       automationBranch: this.automationBranch,
+      runId: this.lastRunId, // שולח את המזהה עם הבקשה
     };
 
     try {
@@ -83,17 +98,20 @@ export class ComponentListComponent implements OnInit {
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
       const data = await res.json();
       console.log("POST sent successfully:", data);
 
-      // טוסטר הצלחה
       this.showToast("Automation started successfully!", "success");
     } catch (err: any) {
       console.error("Error sending POST:", err);
-
-      // טוסטר שגיאה
       this.showToast(`Failed to start automation: ${err.message}`, "error");
+    }
+  }
+
+  copyRunId() {
+    if (this.lastRunId) {
+      navigator.clipboard.writeText(this.lastRunId);
+      this.showToast("Run ID copied to clipboard!", "success");
     }
   }
 

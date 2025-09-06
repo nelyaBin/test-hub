@@ -62,7 +62,17 @@
 
   <!-- Run button -->
   <div class="component-list-wrapper">
-    <!-- ... שאר הקוד שלך נשאר כמו שהוא ... -->
+    <!-- ... שאר הקוד שלך ... -->
+
+    <!-- Run ID -->
+    <!-- Floating Run ID -->
+    <div *ngIf="lastRunId" class="run-id-container">
+      <div class="run-id">{{ lastRunId }}</div>
+      <div class="copy-btn-wrapper" (click)="copyRunId()">
+        <img src="assets/icons/copy-text.svg" alt="Copy" class="copy-btn" />
+        <span class="tooltip-text">העתק ללוח</span>
+      </div>
+    </div>
 
     <!-- Run button -->
     <div class="button-wrapper">
