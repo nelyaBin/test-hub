@@ -58,7 +58,8 @@ export class ComponentListComponent implements OnInit {
   }
 
   private generateUUID(length: number = 10): string {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let uuid = "";
     for (let i = 0; i < length; i++) {
       uuid += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -66,16 +67,29 @@ export class ComponentListComponent implements OnInit {
     return uuid;
   }
 
+  /** מחשב את כמות הפודים הדרושה */
+  private calculatePods(): number {
+    let count = 0;
+    this.custom.forEach((card) => {
+      if (card.selected || card.tests.some((t) => t.selected)) {
+        count++;
+      }
+    });
+    return count > 0 ? count : 1; // ברירת מחדל לפחות 1
+  }
+
   async runAll() {
     if (!this.hasSelectedTests()) return;
 
     const reqUrl = "https://example.com/run"; // החלף ל-URL שלך
     const allSelectedTestsTags = new Set<string>();
+
     [...this.presets, ...this.custom].forEach((card) => {
       card.tests.forEach((test) => {
         if (test.selected) allSelectedTestsTags.add(test.testTag);
       });
     });
+
     const testTagsString = Array.from(allSelectedTestsTags)
       .map((tag) => `@${tag}`)
       .join("|");
@@ -83,11 +97,15 @@ export class ComponentListComponent implements OnInit {
     // צור מזהה יוניקי חדש
     this.lastRunId = this.generateUUID(10);
 
+    // חישוב כמות פודים
+    const podCount = this.calculatePods();
+
     const body = {
       automationUrl: this.atlasUrl,
       testtags: testTagsString,
       automationBranch: this.automationBranch,
       runId: this.lastRunId, // שולח את המזהה עם הבקשה
+      podCount: podCount, // שולח את כמות הפודים
     };
 
     try {
