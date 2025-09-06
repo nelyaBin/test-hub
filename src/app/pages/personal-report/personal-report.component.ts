@@ -15,52 +15,80 @@ export class PersonalReportComponent {
   htmlFileUrl: SafeResourceUrl | null = null;
   errorMessage: string | null = null;
 
-  // מצב של הטוגל
-  showToggle: boolean = false;
-  selected: "report" | "lighthouse" = "report";
+  selected: "report" | "lighthouse" = "report"; // מצב toggle
+  basePath: string = "";
 
   constructor(private sanitizer: DomSanitizer) {}
 
   async searchReport() {
-    const identifier = this.userInput.trim();
+    let identifier = this.userInput.trim();
     if (!identifier) {
-      this.errorMessage = "Please enter a report identifier";
+      this.showError("Please enter a report identifier");
       this.htmlFileUrl = null;
-      this.showToggle = false;
       return;
     }
 
-    // אחרי שהמשתמש הזין מזהה, מראה את הטוגל
-    this.showToggle = true;
+    // אם המשתמש לא כתב http/https נוסיף אוטומטית
+    if (
+      !identifier.startsWith("http://") &&
+      !identifier.startsWith("https://")
+    ) {
+      identifier = `http://jsonplaceholder.typicode.com/${identifier}`;
+    }
 
-    this.loadHtml();
-  }
-
-  // החלפת view בין Report ל-Lighthouse
-  toggleView() {
-    this.selected = this.selected === "report" ? "lighthouse" : "report";
-    this.loadHtml();
-  }
-
-  // טעינת ה-iframe לפי הבחירה
-  private async loadHtml() {
-    const identifier = this.userInput.trim();
-    const fileName =
-      this.selected === "report"
-        ? `${identifier}-report.html`
-        : `${identifier}-lighthouse.html`;
-    const path = `${window.location.origin}/assets/${fileName}`;
-    console.log(path);
+    this.basePath = identifier;
 
     try {
-      const response = await fetch(path, { method: "HEAD" });
-      if (!response.ok) throw new Error("File not found");
+      const response = await fetch(this.basePath, { method: "GET" });
 
-      this.htmlFileUrl = this.sanitizer.bypassSecurityTrustResourceUrl(path);
-      this.errorMessage = null;
-    } catch (err) {
-      this.errorMessage = `Report file not found at path: ${path}`;
+      if (!response.ok) {
+        this.htmlFileUrl = null;
+        this.showError(
+          `Server returned error: ${response.status} ${response.statusText}`
+        );
+        return;
+      }
+
+      this.clearError();
+      this.selected = "report";
+      this.setIframeUrl(this.basePath);
+    } catch (err: any) {
       this.htmlFileUrl = null;
+      this.showError(
+        `Cannot load report from ${this.basePath}. ${err.message}`
+      );
+    }
+  }
+
+  toggleView() {
+    if (this.selected === "report") {
+      this.selected = "lighthouse";
+      this.setIframeUrl(`${this.basePath}/lighthouse`);
+    } else {
+      this.selected = "report";
+      this.setIframeUrl(this.basePath);
+    }
+  }
+
+  private setIframeUrl(path: string) {
+    this.htmlFileUrl = this.sanitizer.bypassSecurityTrustResourceUrl(path);
+  }
+
+  showError(message: string) {
+    this.errorMessage = message;
+    setTimeout(() => {
+      const el = document.querySelector(".error-message");
+      if (el) el.classList.remove("fade-out");
+    }, 10);
+  }
+
+  clearError() {
+    const el = document.querySelector(".error-message");
+    if (el) {
+      el.classList.add("fade-out");
+      setTimeout(() => (this.errorMessage = null), 500);
+    } else {
+      this.errorMessage = null;
     }
   }
 }
