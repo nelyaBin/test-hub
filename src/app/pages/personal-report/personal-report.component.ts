@@ -15,7 +15,7 @@ export class PersonalReportComponent {
   htmlFileUrl: SafeResourceUrl | null = null;
   errorMessage: string | null = null;
 
-  selected: "report" | "lighthouse" = "report"; // מצב toggle
+  selected: "report" | "lighthouse" = "report";
   basePath: string = "";
 
   constructor(private sanitizer: DomSanitizer) {}

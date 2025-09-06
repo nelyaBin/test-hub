@@ -23,7 +23,7 @@
     <input
       type="text"
       placeholder="Automation branch..."
-      [(ngModel)]="searchTerm"
+      [(ngModel)]="automationBranch"
       class="search-input"
     />
   </div>
@@ -61,18 +61,28 @@
   </div>
 
   <!-- Run button -->
-  <div class="button-wrapper">
-    <button
-      class="button"
-      (click)="runAll()"
-      [disabled]="!hasSelectedTests()"
-      [title]="
-        !hasSelectedTests()
-          ? 'Select at least one test, preset, or custom to enable running.'
-          : ''
-      "
-    >
-      Run
-    </button>
+  <div class="component-list-wrapper">
+    <!-- ... שאר הקוד שלך נשאר כמו שהוא ... -->
+
+    <!-- Run button -->
+    <div class="button-wrapper">
+      <button
+        class="button"
+        (click)="runAll()"
+        [disabled]="!hasSelectedTests()"
+        [title]="
+          !hasSelectedTests()
+            ? 'Select at least one test, preset, or custom to enable running.'
+            : ''
+        "
+      >
+        Run
+      </button>
+    </div>
+
+    <!-- Toast -->
+    <div *ngIf="toastMessage" class="toast" [ngClass]="toastType">
+      {{ toastMessage }}
+    </div>
   </div>
 </div>

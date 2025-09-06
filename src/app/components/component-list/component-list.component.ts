@@ -17,7 +17,11 @@ export class ComponentListComponent implements OnInit {
   presets: ComponentData[] = [];
   custom: ComponentData[] = [];
   searchTerm: string = "";
-  atlasUrl: string = ""; // שדה חדש להזנת Atlas URL
+  atlasUrl: string = "";
+  automationBranch: string = "";
+
+  toastMessage: string | null = null;
+  toastType: "success" | "error" = "success";
 
   constructor(private dataService: ComponentDataService) {}
 
@@ -44,7 +48,7 @@ export class ComponentListComponent implements OnInit {
   onSelectionChanged(component: ComponentData) {
     component.selected = !component.selected;
   }
-  
+
   hasSelectedTests(): boolean {
     return [...this.presets, ...this.custom].some(
       (card) => card.selected || card.tests.some((test) => test.selected)
@@ -54,7 +58,6 @@ export class ComponentListComponent implements OnInit {
   async runAll() {
     const reqUrl = "https://example.com/run"; // החלף ל-URL שלך
 
-    // אוספים את כל testtags של הטסטים המסומנים
     const allSelectedTestsTags = new Set<string>();
     [...this.presets, ...this.custom].forEach((card) => {
       card.tests.forEach((test) => {
@@ -62,7 +65,6 @@ export class ComponentListComponent implements OnInit {
       });
     });
 
-    // יוצרים מחרוזת מופרדת ב-| מכל הטאגים הייחודיים
     const testTagsString = Array.from(allSelectedTestsTags)
       .map((tag) => `@${tag}`)
       .join("|");
@@ -70,6 +72,7 @@ export class ComponentListComponent implements OnInit {
     const body = {
       automationUrl: this.atlasUrl,
       testtags: testTagsString,
+      automationBranch: this.automationBranch,
     };
 
     try {
@@ -80,10 +83,26 @@ export class ComponentListComponent implements OnInit {
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
       const data = await res.json();
       console.log("POST sent successfully:", data);
-    } catch (err) {
+
+      // טוסטר הצלחה
+      this.showToast("Automation started successfully!", "success");
+    } catch (err: any) {
       console.error("Error sending POST:", err);
+
+      // טוסטר שגיאה
+      this.showToast(`Failed to start automation: ${err.message}`, "error");
     }
+  }
+
+  showToast(message: string, type: "success" | "error") {
+    this.toastMessage = message;
+    this.toastType = type;
+
+    setTimeout(() => {
+      this.toastMessage = null;
+    }, 3000); // מציג 3 שניות
   }
 }

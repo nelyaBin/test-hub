@@ -8,7 +8,7 @@ import { NgIf } from '@angular/common'; // ✅ ייבוא של NgIf
   templateUrl: './dev-status.component.html',
   styleUrls: ['./dev-status.component.scss'],
   standalone: true,
-  imports: [NgIf] // ✅ הכרחי עבור *ngIf
+  imports: [NgIf] 
 })
 export class DevStatusComponent {
   htmlFileUrl: SafeResourceUrl | null = null;

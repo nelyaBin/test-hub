@@ -62,3 +62,50 @@
   border-radius: 12px;
   font-style: italic;
 }
+
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  padding: 16px 24px;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  animation: slideUp 0.5s forwards, fadeOut 0.5s 2.5s forwards;
+  z-index: 1000;
+
+  &.success {
+    background: linear-gradient(135deg, #4caf50, #2196f3); // ירוק/כחול
+  }
+
+  &.error {
+    background: linear-gradient(135deg, #f44336, #d32f2f); // אדום
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+
