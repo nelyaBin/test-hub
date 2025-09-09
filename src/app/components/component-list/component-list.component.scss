@@ -1,85 +1,588 @@
-@import "../../../styles.scss"; // שנה לנתיב האמיתי שלך
+@import "../../../styles.scss";
 
-.component-list-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  padding-bottom: 50px;
+.homepage-container {
   background: $color-bg;
   color: $color-text;
+  min-height: 100vh;
+  padding: 20px;
+  padding-bottom: 120px; // מקום לaction area
 }
 
-/* Atlas URL field */
-.atlas-url-container {
+// ===== Configuration Header =====
+.config-header {
+  margin-bottom: 40px;
+
+  .config-card {
+    background: lighten($color-bg, 3%);
+    border: 1px solid $color-border;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .config-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 700;
+    color: $color-primary;
+    margin: 0 0 20px 0;
+  }
+
+  .config-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-label {
+    font-size: 14px;
+    font-weight: 600;
+    // color: lighten($color-text, 20%);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .config-input {
+    padding: 12px 16px;
+    background: $color-card-bg;
+    border: 2px solid $color-border;
+    border-radius: 8px;
+    color: $color-text;
+    font-size: 16px;
+    transition: all 0.3s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $color-secondary;
+      box-shadow: 0 0 0 3px rgba($color-secondary, 0.2);
+    }
+
+    &::placeholder {
+      color: darken($color-text, 20%);
+    }
+  }
+}
+
+// ===== Selection Area =====
+.selection-area {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+.section-container {
+  background: lighten($color-bg, 2%);
+  border-radius: 16px;
+  padding: 24px;
+  border-left: 4px solid;
+
+  &.presets-section {
+    border-left-color: #ff6b35;
+  }
+
+  &.customs-section {
+    border-left-color: #42a5f5;
+  }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .section-title {
-  font-size: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 16px;
   color: $color-text;
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  position: relative;
-  cursor: default;
+  margin: 0;
 
-  &::after {
-    content: "";
-    display: block;
-    position: absolute;
-    left: 0;
-    bottom: -6px;
-    width: 60px;
-    height: 3px;
-    border-radius: 2px;
-    background: linear-gradient(90deg, $color-secondary, $color-bg);
-    transition: width 0.25s ease-in-out;
+  .preset-icon {
+    color: #ff6b35;
   }
 
-  &:hover::after {
-    width: 100px;
+  .custom-icon {
+    color: #42a5f5;
+  }
+
+  .selection-count {
+    font-size: 14px;
+    background: $color-secondary;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
   }
 }
 
-/* Cards grid */
-.cards-grid {
+.section-actions {
   display: flex;
-  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.clear-btn,
+.expand-all-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid $color-border;
+  border-radius: 6px;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba($color-secondary, 0.1);
+    border-color: $color-secondary;
+  }
+}
+
+// ===== Cards Grid =====
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
 }
 
-/* No results placeholder */
 .no-results {
-  flex: 1;
-  padding: 20px;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
   text-align: center;
   font-size: 16px;
-  color: #ccc;
-  background: #1e1e1e;
-  border: 1px dashed $color-border;
+  color: darken($color-text, 30%);
+  background: darken($color-bg, 2%);
+  border: 2px dashed $color-border;
   border-radius: 12px;
   font-style: italic;
+
+  .no-results-icon {
+    font-size: 24px;
+    opacity: 0.5;
+  }
 }
 
-/* Toast */
+// ===== Summary Bar =====
+.summary-bar {
+  background: linear-gradient(
+    135deg,
+    darken($color-secondary, 10%),
+    $color-secondary
+  );
+  border-radius: 12px;
+  padding: 16px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba($color-secondary, 0.3);
+}
+
+.summary-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.summary-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: white;
+  flex: 1;
+}
+
+.view-details-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.summary-details {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.selected-tests-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.test-tag-chip {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+// ===== Action Area =====
+.action-area {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: $color-bg;
+  border-top: 1px solid $color-border;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.run-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.run-info {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.run-id-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.run-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: darken($color-text, 30%);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.run-id-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: darken($color-bg, 3%);
+  border: 2px solid $color-border;
+  border-radius: 12px;
+  min-height: 56px;
+  width: 100%;
+  max-width: 500px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  // Initial hidden state
+  &:not(.visible) {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    border-color: transparent;
+    background: transparent;
+  }
+
+  // Visible state with smooth entrance
+  &.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    border-color: lighten($color-secondary, 20%);
+    background: darken($color-bg, 3%);
+    box-shadow: 0 4px 20px rgba($color-secondary, 0.1),
+      0 2px 8px rgba(0, 0, 0, 0.05);
+
+    // Subtle glow effect
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        45deg,
+        transparent,
+        rgba($color-secondary, 0.05),
+        transparent
+      );
+      border-radius: inherit;
+      z-index: -1;
+    }
+  }
+
+  &:hover.visible {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 25px rgba($color-secondary, 0.15),
+      0 3px 12px rgba(0, 0, 0, 0.08);
+    border-color: $color-secondary;
+  }
+}
+
+.run-id {
+  font-family: "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New",
+    monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: $color-secondary;
+  background: none;
+  border: none;
+  outline: none;
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.5px;
+  user-select: all; // Allow easy selection for copying
+
+  // Typing animation effect
+  &.typing {
+    overflow: hidden;
+    border-right: 2px solid $color-secondary;
+    white-space: nowrap;
+    animation: typing 1.5s steps(20, end), blink-caret 0.75s step-end infinite;
+  }
+}
+
+.copy-btn {
+  background: rgba($color-secondary, 0.1);
+  border: 1px solid rgba($color-secondary, 0.2);
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $color-secondary;
+
+  &:hover {
+    background: rgba($color-secondary, 0.2);
+    border-color: rgba($color-secondary, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba($color-secondary, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  // Success state after copying
+  &.copied {
+    background: rgba(#4caf50, 0.2);
+    border-color: rgba(#4caf50, 0.4);
+    color: #4caf50;
+
+    &::after {
+      content: "נועתק!";
+      font-size: 10px;
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4caf50;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      animation: fadeInOut 1.5s ease;
+    }
+  }
+}
+.run-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 40px;
+  background: linear-gradient(
+    135deg,
+    $color-secondary,
+    lighten($color-secondary, 10%)
+  );
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 25px rgba($color-secondary, 0.3),
+    0 4px 12px rgba($color-secondary, 0.2);
+  min-width: 220px;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+
+  // Subtle shine effect
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.6s;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 35px rgba($color-secondary, 0.4),
+      0 6px 18px rgba($color-secondary, 0.3);
+
+    &::before {
+      left: 100%;
+    }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-1px) scale(1.01);
+    transition: all 0.1s;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(
+      135deg,
+      darken($color-text, 50%),
+      darken($color-text, 40%)
+    );
+  }
+
+  &.pulse {
+    animation: pulse-glow 2s infinite;
+  }
+
+  .test-count {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 8px 25px rgba($color-secondary, 0.3),
+      0 4px 12px rgba($color-secondary, 0.2);
+  }
+  50% {
+    box-shadow: 0 12px 40px rgba($color-secondary, 0.5),
+      0 6px 20px rgba($color-secondary, 0.4),
+      0 0 30px rgba($color-secondary, 0.2);
+  }
+  100% {
+    box-shadow: 0 8px 25px rgba($color-secondary, 0.3),
+      0 4px 12px rgba($color-secondary, 0.2);
+  }
+}
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink-caret {
+  from,
+  to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: $color-secondary;
+  }
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+// ===== Toast Messages =====
 .toast {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 16px 24px;
   border-radius: 12px;
-  color: #fff;
+  color: white;
   font-weight: 600;
   font-size: 16px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
   opacity: 0;
-  animation: slideUp 0.5s forwards, fadeOut 0.5s 2.5s forwards;
-  z-index: 1000;
+  animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+    fadeOutRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) 3s forwards;
+  z-index: 1001;
+  max-width: 400px;
+  backdrop-filter: blur(10px);
 
   &.success {
-    background: linear-gradient(135deg, #4caf50, #4caf50);
+    background: linear-gradient(135deg, #4caf50, #388e3c);
   }
 
   &.error {
@@ -87,97 +590,54 @@
   }
 }
 
-@keyframes slideUp {
+@keyframes slideInRight {
   from {
-    transform: translateY(50px);
+    transform: translateX(100%) scale(0.9);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateX(0) scale(1);
     opacity: 1;
   }
 }
 
-@keyframes fadeOut {
+@keyframes fadeOutRight {
   from {
     opacity: 1;
+    transform: translateX(0) scale(1);
   }
   to {
     opacity: 0;
+    transform: translateX(100%) scale(0.9);
   }
 }
 
-/* Run ID container מעל כפתור Run */
-.run-id-container {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  bottom: 120px; /* תמיד 30px מעל כפתור Run */
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  opacity: 0;
-  animation: fadeInUp 0.6s forwards;
-  z-index: 1000;
-}
-
-.run-id {
-  font-weight: 700;
-  font-size: 16px;
-  color: $color-text;
-  cursor: default;
-  transition: transform 0.3s ease, color 0.3s ease;
-}
-
-/* Copy button עם tooltip */
-.copy-btn-wrapper {
-  position: relative;
-  display: inline-block;
-
-  .copy-btn {
-    width: 20px; // או הגודל הרצוי
-    height: 20px;
-    cursor: pointer;
-    transition: transform 0.2s ease, filter 0.2s ease;
-
-    &:hover {
-      transform: scale(1.2);
-      filter: brightness(1.2);
-    }
+// ===== Responsive Design =====
+@media (max-width: 768px) {
+  .run-section {
+    padding: 16px;
+    gap: 24px;
   }
 
-  .tooltip-text {
-    visibility: hidden;
-    opacity: 0;
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 8px;
-    position: absolute;
-    bottom: 140%;
-    left: 50%;
-    transform: translateX(-50%) translateY(10px);
-    white-space: nowrap;
-    transition: all 0.3s ease;
-    font-size: 13px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  .run-button {
+    min-width: 180px;
+    padding: 18px 32px;
+    font-size: 16px;
   }
 
-  &:hover .tooltip-text {
-    visibility: visible;
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+  .run-id-display {
+    padding: 14px 20px;
+    max-width: 100%;
+  }
+
+  .run-id {
+    font-size: 14px;
+  }
+
+  .toast {
+    right: 16px;
+    top: 16px;
+    max-width: calc(100vw - 32px);
   }
 }
 
-/* Fade + move up animation */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}

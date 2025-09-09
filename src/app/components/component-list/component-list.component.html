@@ -1,91 +1,175 @@
-<div class="component-list-wrapper">
-  <!-- Search bar -->
-  <div class="search-bar">
-    <input
-      type="text"
-      placeholder="Search components..."
-      [value]="searchTerm()"
-      (input)="updateSearchTerm($any($event.target).value)"
-      class="search-input"
-    />
-  </div>
-
-  <!-- Atlas URL field -->
-  <div class="atlas-url-container">
-    <input
-      type="text"
-      placeholder="Enter Atlas URL..."
-      [value]="atlasUrl()"
-      (input)="updateAtlasUrl($any($event.target).value)"
-      class="search-input"
-    />
-  </div>
-
-  <div class="search-bar">
-    <input
-      type="text"
-      placeholder="Automation branch..."
-      [value]="automationBranch()"
-      (input)="updateAutomationBranch($any($event.target).value)"
-      class="search-input"
-    />
-  </div>
-
-  <!-- Presets -->
-  <h2 class="section-title">Presets</h2>
-  <div class="cards-grid">
-    <app-component-card
-      *ngFor="let preset of filteredPresets()"
-      [data]="preset"
-      [isPreset]="true"
-    ></app-component-card>
-
-    <div *ngIf="!filteredPresets().length" class="no-results">
-      No matching Presets found
+<div class="homepage-container">
+  <!-- Configuration Header -->
+  <div class="config-header">
+    <div class="config-card">
+      <h3 class="config-title">
+        <span class="config-icon">⚙️</span>
+        Test Configuration
+      </h3>
+      <div class="config-inputs">
+        <div class="input-group">
+          <label class="input-label">Search Components</label>
+          <input
+            type="text"
+            placeholder="Filter presets and customs..."
+            [value]="searchTerm()"
+            (input)="updateSearchTerm($any($event.target).value)"
+            class="config-input"
+          />
+        </div>
+        <div class="input-group">
+          <label class="input-label">Atlas URL</label>
+          <input
+            type="text"
+            placeholder="Enter Atlas environment URL..."
+            [value]="atlasUrl()"
+            (input)="updateAtlasUrl($any($event.target).value)"
+            class="config-input"
+          />
+        </div>
+        <div class="input-group">
+          <label class="input-label">Automation Branch</label>
+          <input
+            type="text"
+            placeholder="Specify branch name..."
+            [value]="automationBranch()"
+            (input)="updateAutomationBranch($any($event.target).value)"
+            class="config-input"
+          />
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Customs -->
-  <h2 class="section-title">Customs</h2>
-  <div class="cards-grid">
-    <app-component-card
-      *ngFor="let customItem of filteredCustoms()"
-      [data]="customItem"
-      [isPreset]="false"
-    ></app-component-card>
+  <!-- Test Selection Area -->
+  <div class="selection-area">
+    <!-- Presets Section -->
+    <div class="section-container presets-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="section-icon preset-icon">🎯</span>
+          Presets
+          <span class="selection-count" *ngIf="getSelectedPresetsCount() > 0">
+            {{ getSelectedPresetsCount() }} selected
+          </span>
+        </h2>
+        <div class="section-actions">
+          <button
+            class="clear-btn"
+            *ngIf="hasSelectedPresets()"
+            (click)="clearAllPresets()"
+          >
+            Clear All
+          </button>
+        </div>
+      </div>
 
-    <div *ngIf="!filteredCustoms().length" class="no-results">
-      No matching Customs found
+      <div class="cards-grid">
+        <app-component-card
+          *ngFor="let preset of filteredPresets()"
+          [data]="preset"
+          [isPreset]="true"
+        ></app-component-card>
+
+        <div *ngIf="!filteredPresets().length" class="no-results">
+          <span class="no-results-icon">🔍</span>
+          <span>No matching Presets found</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customs Section -->
+    <div class="section-container customs-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="section-icon custom-icon">🧩</span>
+          Custom Components
+          <span class="selection-count" *ngIf="getSelectedCustomsCount() > 0">
+            {{ getSelectedCustomsCount() }} selected
+          </span>
+        </h2>
+        <div class="section-actions">
+          <button
+            class="clear-btn"
+            *ngIf="hasSelectedCustoms()"
+            (click)="clearAllCustoms()"
+          >
+            Clear All
+          </button>
+          <!-- <button class="expand-all-btn" (click)="toggleExpandAll()">
+            {{ allExpanded() ? "Collapse All" : "Expand All" }}
+          </button> -->
+        </div>
+      </div>
+
+      <div class="cards-grid">
+        <app-component-card
+          *ngFor="let customItem of filteredCustoms()"
+          [data]="customItem"
+          [isPreset]="false"
+        ></app-component-card>
+
+        <div *ngIf="!filteredCustoms().length" class="no-results">
+          <span class="no-results-icon">🔍</span>
+          <span>No matching Customs found</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Run ID -->
-  <div *ngIf="lastRunId()" class="run-id-container">
-    <div class="run-id">{{ lastRunId() }}</div>
-    <div class="copy-btn-wrapper" (click)="copyRunId()">
-      <img src="assets/icons/copy-text.svg" alt="Copy" class="copy-btn" />
-      <span class="tooltip-text">העתק ללוח</span>
+  <!-- Selected Tests Summary -->
+  <div class="summary-bar" *ngIf="hasSelectedTests()">
+    <div class="summary-content">
+      <span class="summary-icon">✓</span>
+      <span class="summary-text">
+        {{ getSelectedTestsCount() }} tests selected for execution
+      </span>
+      <button class="view-details-btn" (click)="toggleSummaryDetails()">
+        {{ showSummaryDetails() ? "Hide" : "View" }} Details
+      </button>
+    </div>
+
+    <div class="summary-details" *ngIf="showSummaryDetails()">
+      <div class="selected-tests-list">
+        <span
+          *ngFor="let tag of getSelectedTestTags(); let last = last"
+          class="test-tag-chip"
+        >
+          {{ tag }}<span *ngIf="!last">, </span>
+        </span>
+      </div>
     </div>
   </div>
 
-  <!-- Run button -->
-  <div class="button-wrapper">
-    <button
-      class="button"
-      (click)="runAll()"
-      [disabled]="!hasSelectedTests()"
-      [title]="
-        !hasSelectedTests()
-          ? 'Select at least one test, preset, or custom to enable running.'
-          : ''
-      "
-    >
-      Run
-    </button>
+  <!-- Action Area -->
+  <div class="action-area">
+    <div class="run-section">
+      <div class="run-info" *ngIf="lastRunId() && showRunId()"></div>
+
+      <button
+        class="run-button"
+        (click)="runAll()"
+        [disabled]="!hasSelectedTests()"
+        [class.pulse]="hasSelectedTests()"
+      >
+        <span class="run-icon">🚀</span>
+        <span class="run-text">
+          {{
+            hasSelectedTests() ? "Run Selected Tests" : "Select Tests to Run"
+          }}
+        </span>
+        <span class="test-count" *ngIf="hasSelectedTests()">
+          ({{ getSelectedTestsCount() }})
+        </span>
+      </button>
+    </div>
   </div>
 
-  <!-- Toast -->
+  <!-- Toast Messages -->
   <div *ngIf="toastMessage()" class="toast" [ngClass]="toastType()">
+    <span class="toast-icon">
+      {{ toastType() === "success" ? "✅" : "❌" }}
+    </span>
     {{ toastMessage() }}
   </div>
 </div>
