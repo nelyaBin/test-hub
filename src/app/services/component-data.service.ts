@@ -11,9 +11,6 @@ export class ComponentDataService {
   // Signal שמחזיק את כל הנתונים
   private allComponentsSignal = signal<ComponentData[]>([]);
   
-  // משתנה סטטי של ComponentData במקום קריאה לJSON
-  
-  
   // Computed signals לסינון
   readonly presets = computed(() => 
     this.allComponentsSignal().filter(c => c.isPreset)
@@ -25,7 +22,9 @@ export class ComponentDataService {
   
   readonly allComponents = computed(() => this.allComponentsSignal());
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    this.loadComponentsToSignal();
+  }
 
   // עכשיו מחזיר את המשתנה הסטטי במקום קריאה לJSON
   getComponents(): Observable<ComponentData[]> {
@@ -36,57 +35,6 @@ export class ComponentDataService {
   loadComponentsToSignal() {
     this.getComponents().subscribe(data => {
       this.allComponentsSignal.set(data);
-    });
-  }
-
-  // הפונקציה המתוקנת - עכשיו לא מגדירה state אבסולוטי אלא מחשבת מה צריך להיות
-  syncGroupSelection(group: string[], state: boolean, allData: ComponentData[]) {
-    // במקום להגדיר state אבסולוטי, נחשב מה הstatus הנכון של כל custom ו-test
-    this.recalculateAllSelections(allData);
-    
-    // עדכון הSignal עם השינויים
-    this.allComponentsSignal.set([...allData]);
-  }
-
-  // פונקציה חדשה שמחשבת מחדש את כל הבחירות בהתאם לpresets הפעילים
-  private recalculateAllSelections(allData: ComponentData[]) {
-    // קודם כל, נאפס את כל הבחירות
-    allData.filter(d => !d.isPreset).forEach(custom => {
-      custom.selected = false;
-      custom.tests.forEach(test => test.selected = false);
-    });
-
-    // עכשיו נעבור על כל preset פעיל ונפעיל את מה שהוא אמור לגרום לו
-    const activePresets = allData.filter(d => d.isPreset && d.selected);
-    
-    activePresets.forEach(preset => {
-      // לוגיקה ראשונה: פעלה על custom components לפי group
-      allData
-        .filter((d) => !d.isPreset && d.group.some((g) => preset.group.includes(g)))
-        .forEach((custom) => {
-          custom.selected = true;
-          custom.tests.forEach((t) => (t.selected = true));
-        });
-
-      // לוגיקה שנייה: פעלה על tests ספציפיים לפי testGroup
-      allData
-        .filter((d) => !d.isPreset)
-        .forEach((custom) => {
-          custom.tests.forEach((test) => {
-            if (test.testGroup?.some((g) => preset.group.includes(g))) {
-              test.selected = true;
-            }
-          });
-        });
-    });
-
-    // עכשיו נעדכן את מצב הcustom components בהתאם לטסטים שלהם
-    allData.filter(d => !d.isPreset).forEach(custom => {
-      const hasSelectedTests = custom.tests.some(test => test.selected);
-      if (hasSelectedTests && !custom.selected) {
-        // אם יש טסטים נבחרים אבל הcustom עצמו לא נבחר, זה אומר שיש partial selection
-        custom.selected = false; // הcustom לא נבחר במלואו
-      }
     });
   }
 
@@ -126,6 +74,35 @@ export class ComponentDataService {
     });
   }
 
+  // פונקציה לעדכון בחירת test בודד
+  toggleTestSelection(customId: string, testIndex: number) {
+    this.allComponentsSignal.update(components => {
+      const custom = components.find(c => c.componentName === customId && !c.isPreset);
+      if (!custom || !custom.tests[testIndex]) return components;
+
+      // החלפת מצב הטסט
+      custom.tests[testIndex].selected = !custom.tests[testIndex].selected;
+
+      // עדכון מצב הcustom בהתאם לטסטים
+      const allSelected = custom.tests.every(t => t.selected);
+      const noneSelected = custom.tests.every(t => !t.selected);
+      
+      if (allSelected) {
+        custom.selected = true;
+      } else if (noneSelected) {
+        custom.selected = false;
+      } else {
+        // partial selection - Custom לא נבחר אבל יש טסטים נבחרים
+        custom.selected = false;
+      }
+
+      // עדכון כל הpresets הרלוונטיים
+      this.updateAllPresetsState(components);
+
+      return [...components];
+    });
+  }
+
   // פונקציה לעדכון מצב הexpansion
   toggleExpansion(componentId: string) {
     this.allComponentsSignal.update(components => {
@@ -134,6 +111,54 @@ export class ComponentDataService {
         component.isExpanded = !component.isExpanded;
       }
       return [...components];
+    });
+  }
+
+  // פונקציה שמחשבת מחדש את כל הבחירות בהתאם לpresets הפעילים
+  private recalculateAllSelections(allData: ComponentData[]) {
+    // קודם כל, נאפס את כל הבחירות של customs ו-tests
+    allData.filter(d => !d.isPreset).forEach(custom => {
+      custom.selected = false;
+      custom.tests.forEach(test => test.selected = false);
+    });
+
+    // עכשיו נעבור על כל preset פעיל ונפעיל את מה שהוא אמור לגרום לו
+    const activePresets = allData.filter(d => d.isPreset && d.selected);
+    
+    activePresets.forEach(preset => {
+      // לוגיקה ראשונה: פעלה על custom components לפי group
+      allData
+        .filter((d) => !d.isPreset && d.group.some((g) => preset.group.includes(g)))
+        .forEach((custom) => {
+          custom.selected = true;
+          custom.tests.forEach((t) => (t.selected = true));
+        });
+
+      // לוגיקה שנייה: פעלה על tests ספציפיים לפי testGroup
+      allData
+        .filter((d) => !d.isPreset)
+        .forEach((custom) => {
+          custom.tests.forEach((test) => {
+            if (test.testGroup?.some((g) => preset.group.includes(g))) {
+              test.selected = true;
+            }
+          });
+        });
+    });
+
+    // עכשיו נעדכן את מצב הcustom components בהתאם לטסטים שלהם
+    allData.filter(d => !d.isPreset).forEach(custom => {
+      const selectedTests = custom.tests.filter(test => test.selected).length;
+      const totalTests = custom.tests.length;
+      
+      if (selectedTests === totalTests && totalTests > 0) {
+        custom.selected = true;
+      } else if (selectedTests === 0) {
+        custom.selected = false;
+      } else {
+        // partial selection
+        custom.selected = false;
+      }
     });
   }
 
@@ -147,27 +172,21 @@ export class ComponentDataService {
           !c.isPreset && c.group.some(g => preset.group.includes(g))
         );
 
-        // בודק customs שיש להם טסטים עם testGroup שמתאים לpreset
-        const customsWithRelevantTests = components.filter(c => !c.isPreset)
-          .filter(custom => 
-            custom.tests.some(test => 
-              test.selected && test.testGroup?.some(g => preset.group.includes(g))
-            )
-          );
+        // בודק אם כל הטסטים הרלוונטיים לפי testGroup נבחרים
+        const allRelevantTestsSelected = components
+          .filter(c => !c.isPreset)
+          .every(custom => {
+            const relevantTests = custom.tests.filter(test => 
+              test.testGroup?.some(g => preset.group.includes(g))
+            );
+            return relevantTests.length === 0 || relevantTests.every(test => test.selected);
+          });
 
         // הpresets יהיה נבחר רק אם:
         // 1. כל הcustoms הקשורים אליו לפי group נבחרים
         // 2. וכל הטסטים הרלוונטיים לפי testGroup נבחרים
-        const allRelatedCustomsSelected = relatedCustomsByGroup.length > 0 && 
+        const allRelatedCustomsSelected = relatedCustomsByGroup.length === 0 || 
           relatedCustomsByGroup.every(c => c.selected);
-
-        const allRelevantTestsSelected = components
-          .filter(c => !c.isPreset)
-          .every(custom => 
-            custom.tests
-              .filter(test => test.testGroup?.some(g => preset.group.includes(g)))
-              .every(test => test.selected)
-          );
 
         // בודק אם יש בכלל טסטים או customs שקשורים לpreset הזה
         const hasRelatedItems = relatedCustomsByGroup.length > 0 || 

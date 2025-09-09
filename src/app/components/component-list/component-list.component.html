@@ -4,7 +4,8 @@
     <input
       type="text"
       placeholder="Search components..."
-      [(ngModel)]="searchTerm"
+      [value]="searchTerm()"
+      (input)="updateSearchTerm($any($event.target).value)"
       class="search-input"
     />
   </div>
@@ -14,7 +15,8 @@
     <input
       type="text"
       placeholder="Enter Atlas URL..."
-      [(ngModel)]="atlasUrl"
+      [value]="atlasUrl()"
+      (input)="updateAtlasUrl($any($event.target).value)"
       class="search-input"
     />
   </div>
@@ -23,7 +25,8 @@
     <input
       type="text"
       placeholder="Automation branch..."
-      [(ngModel)]="automationBranch"
+      [value]="automationBranch()"
+      (input)="updateAutomationBranch($any($event.target).value)"
       class="search-input"
     />
   </div>
@@ -32,14 +35,12 @@
   <h2 class="section-title">Presets</h2>
   <div class="cards-grid">
     <app-component-card
-      *ngFor="let preset of filteredPresets"
+      *ngFor="let preset of filteredPresets()"
       [data]="preset"
       [isPreset]="true"
-      [allData]="allData"
-      (selectionChanged)="onSelectionChanged(preset)"
     ></app-component-card>
 
-    <div *ngIf="!filteredPresets.length" class="no-results">
+    <div *ngIf="!filteredPresets().length" class="no-results">
       No matching Presets found
     </div>
   </div>
@@ -48,51 +49,43 @@
   <h2 class="section-title">Customs</h2>
   <div class="cards-grid">
     <app-component-card
-      *ngFor="let customItem of filteredCustoms"
+      *ngFor="let customItem of filteredCustoms()"
       [data]="customItem"
       [isPreset]="false"
-      [allData]="allData"
-      (selectionChanged)="onSelectionChanged(customItem)"
     ></app-component-card>
 
-    <div *ngIf="!filteredCustoms.length" class="no-results">
+    <div *ngIf="!filteredCustoms().length" class="no-results">
       No matching Customs found
     </div>
   </div>
 
+  <!-- Run ID -->
+  <div *ngIf="lastRunId()" class="run-id-container">
+    <div class="run-id">{{ lastRunId() }}</div>
+    <div class="copy-btn-wrapper" (click)="copyRunId()">
+      <img src="assets/icons/copy-text.svg" alt="Copy" class="copy-btn" />
+      <span class="tooltip-text">העתק ללוח</span>
+    </div>
+  </div>
+
   <!-- Run button -->
-  <div class="component-list-wrapper">
-    <!-- ... שאר הקוד שלך ... -->
+  <div class="button-wrapper">
+    <button
+      class="button"
+      (click)="runAll()"
+      [disabled]="!hasSelectedTests()"
+      [title]="
+        !hasSelectedTests()
+          ? 'Select at least one test, preset, or custom to enable running.'
+          : ''
+      "
+    >
+      Run
+    </button>
+  </div>
 
-    <!-- Run ID -->
-    <!-- Floating Run ID -->
-    <div *ngIf="lastRunId" class="run-id-container">
-      <div class="run-id">{{ lastRunId }}</div>
-      <div class="copy-btn-wrapper" (click)="copyRunId()">
-        <img src="assets/icons/copy-text.svg" alt="Copy" class="copy-btn" />
-        <span class="tooltip-text">העתק ללוח</span>
-      </div>
-    </div>
-
-    <!-- Run button -->
-    <div class="button-wrapper">
-      <button
-        class="button"
-        (click)="runAll()"
-        [disabled]="!hasSelectedTests()"
-        [title]="
-          !hasSelectedTests()
-            ? 'Select at least one test, preset, or custom to enable running.'
-            : ''
-        "
-      >
-        Run
-      </button>
-    </div>
-
-    <!-- Toast -->
-    <div *ngIf="toastMessage" class="toast" [ngClass]="toastType">
-      {{ toastMessage }}
-    </div>
+  <!-- Toast -->
+  <div *ngIf="toastMessage()" class="toast" [ngClass]="toastType()">
+    {{ toastMessage() }}
   </div>
 </div>
