@@ -1,0 +1,41 @@
+<!-- components/test-section/test-section.component.html -->
+<div class="section-container" [ngClass]="sectionClass">
+  <div class="section-header">
+    <h2 class="section-title">
+      <span class="section-icon" [ngClass]="iconClass">{{ icon }}</span>
+      {{ title }}
+      <span class="selection-count" *ngIf="selectedCount > 0">
+        {{ selectedCount }} selected
+      </span>
+    </h2>
+    <div class="section-actions">
+      <button
+        class="clear-btn"
+        *ngIf="hasSelectedItems"
+        (click)="onClearAll()"
+      >
+        Clear All
+      </button>
+      <button 
+        class="expand-all-btn" 
+        *ngIf="sectionType === 'customs'"
+        (click)="onExpandAll()"
+      >
+        Expand All
+      </button>
+    </div>
+  </div>
+
+  <div class="cards-grid">
+    <app-component-card
+      *ngFor="let item of items"
+      [data]="item"
+      [isPreset]="sectionType === 'presets'"
+    ></app-component-card>
+
+    <div *ngIf="!items.length" class="no-results">
+      <span class="no-results-icon">🔍</span>
+      <span>{{ noResultsMessage }}</span>
+    </div>
+  </div>
+</div>

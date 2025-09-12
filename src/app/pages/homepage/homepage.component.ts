@@ -1,3 +1,4 @@
+// pages/homepage/homepage.component.ts
 import { Component } from '@angular/core';
 import { ComponentListComponent } from '../../components/component-list/component-list.component';
 

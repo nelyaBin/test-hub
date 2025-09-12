@@ -1,0 +1,23 @@
+<!-- components/test-summary/test-summary.component.html -->
+<div class="summary-bar" *ngIf="isVisible">
+  <div class="summary-content">
+    <span class="summary-icon">✓</span>
+    <span class="summary-text">
+      {{ selectedTestsCount }} tests selected for execution
+    </span>
+    <button class="view-details-btn" (click)="onToggleDetails()">
+      {{ showDetails ? "Hide" : "View" }} Details
+    </button>
+  </div>
+
+  <div class="summary-details" *ngIf="showDetails">
+    <div class="selected-tests-list">
+      <span
+        *ngFor="let tag of selectedTestTags; let last = last"
+        class="test-tag-chip"
+      >
+        {{ tag }}<span *ngIf="!last">, </span>
+      </span>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,63 @@
+// components/test-configuration/test-configuration.component.scss
+@import "../../../styles.scss";
+
+.config-header {
+  margin-bottom: 40px;
+
+  .config-card {
+    background: lighten($color-bg, 3%);
+    border: 1px solid $color-border;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .config-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 700;
+    color: $color-primary;
+    margin: 0 0 20px 0;
+  }
+
+  .config-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .input-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .config-input {
+    padding: 12px 16px;
+    background: $color-card-bg;
+    border: 2px solid $color-border;
+    border-radius: 8px;
+    color: $color-text;
+    font-size: 16px;
+    transition: all 0.3s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $color-secondary;
+      box-shadow: 0 0 0 3px rgba($color-secondary, 0.2);
+    }
+
+    &::placeholder {
+      color: darken($color-text, 20%);
+    }
+  }
+}

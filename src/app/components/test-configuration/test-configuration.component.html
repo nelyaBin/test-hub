@@ -1,0 +1,41 @@
+<!-- components/test-configuration/test-configuration.component.html -->
+<div class="config-header">
+  <div class="config-card">
+    <h3 class="config-title">
+      <span class="config-icon">⚙️</span>
+      Test Configuration
+    </h3>
+    <div class="config-inputs">
+      <div class="input-group">
+        <label class="input-label">Search Components</label>
+        <input
+          type="text"
+          placeholder="Filter presets and customs..."
+          [value]="searchTerm"
+          (input)="onSearchTermChange($any($event.target).value)"
+          class="config-input"
+        />
+      </div>
+      <div class="input-group">
+        <label class="input-label">Atlas URL</label>
+        <input
+          type="text"
+          placeholder="Enter Atlas environment URL..."
+          [value]="atlasUrl"
+          (input)="onAtlasUrlChange($any($event.target).value)"
+          class="config-input"
+        />
+      </div>
+      <div class="input-group">
+        <label class="input-label">Automation Branch</label>
+        <input
+          type="text"
+          placeholder="Specify branch name..."
+          [value]="automationBranch"
+          (input)="onAutomationBranchChange($any($event.target).value)"
+          class="config-input"
+        />
+      </div>
+    </div>
+  </div>
+</div>
