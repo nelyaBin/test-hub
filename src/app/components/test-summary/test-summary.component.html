@@ -1,5 +1,5 @@
-<!-- components/test-summary/test-summary.component.html -->
-<div class="summary-bar" *ngIf="isVisible">
+@if (isVisible) {
+<div class="summary-bar">
   <div class="summary-content">
     <span class="summary-icon">✓</span>
     <span class="summary-text">
@@ -10,14 +10,14 @@
     </button>
   </div>
 
-  <div class="summary-details" *ngIf="showDetails">
+  @if (showDetails) {
+  <div class="summary-details">
     <div class="selected-tests-list">
-      <span
-        *ngFor="let tag of selectedTestTags; let last = last"
-        class="test-tag-chip"
-      >
-        {{ tag }}<span *ngIf="!last">, </span>
-      </span>
+      @for (tag of selectedTestTags; track tag; let last = $last) {
+      <span class="test-tag-chip"> {{ tag }}@if (!last) {, } </span>
+      }
     </div>
   </div>
+  }
 </div>
+}
