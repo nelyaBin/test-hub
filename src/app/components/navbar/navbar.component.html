@@ -1,3 +1,4 @@
+<!-- components/navbar/navbar.component.html -->
 <nav class="navbar">
   <div class="logo-container">
     <img src="assets/logo2.png" alt="Site Logo" class="logo" />
@@ -14,4 +15,9 @@
       <a routerLink="/personal-report">Personal Report</a>
     </li>
   </ul>
+
+  <!-- Add notification component to navbar -->
+  <div class="navbar-actions">
+    <app-notifications></app-notifications>
+  </div>
 </nav>

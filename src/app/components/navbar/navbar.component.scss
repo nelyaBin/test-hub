@@ -81,3 +81,36 @@
     }
   }
 }
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto; /* Push to the right */
+}
+
+/* If you need to adjust the existing ul styles */
+.navbar ul {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 24px;
+  flex: 1; /* Allow the nav items to take available space */
+  justify-content: center; /* Center the nav items */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .navbar-actions {
+    gap: 12px;
+  }
+
+  .navbar ul {
+    gap: 16px;
+  }
+}

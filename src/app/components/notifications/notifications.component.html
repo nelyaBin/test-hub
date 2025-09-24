@@ -1,0 +1,107 @@
+<!-- components/notifications/notifications.component.html -->
+<div class="notification-container">
+  <!-- Notification Button -->
+  <button 
+    class="notification-button" 
+    (click)="togglePanel()"
+    [class.has-notifications]="hasNewNotifications()"
+    [class.active]="isOpen()"
+  >
+    <span class="notification-icon">🔔</span>
+    <span 
+      class="notification-badge" 
+      *ngIf="notificationCount() > 0"
+      [class.pulse]="hasNewNotifications()"
+    >
+      {{ notificationCount() }}
+    </span>
+  </button>
+
+  <!-- Notification Panel -->
+  <div 
+    class="notification-panel" 
+    *ngIf="isOpen()"
+    [@slideIn]
+  >
+    <!-- Panel Header -->
+    <div class="panel-header">
+      <div class="header-content">
+        <h3 class="panel-title">
+          <span class="title-icon">🚀</span>
+          התראות ריצה
+        </h3>
+        <div class="header-stats" *ngIf="runningCount() > 0">
+          <span class="running-count">{{ runningCount() }} פועל</span>
+        </div>
+      </div>
+      <button class="close-button" (click)="closePanel()">
+        <span>×</span>
+      </button>
+    </div>
+
+    <!-- Panel Actions -->
+    <div class="panel-actions" *ngIf="notificationCount() > 0">
+      <button class="action-btn secondary" (click)="clearCompleted()">
+        נקה הושלמו
+      </button>
+      <button class="action-btn danger" (click)="clearAll()">
+        נקה הכל
+      </button>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="notifications-list" *ngIf="notificationCount() > 0; else emptyState">
+      <div 
+        class="notification-item" 
+        *ngFor="let notification of activeNotifications(); trackBy: trackByFn"
+        [class]="getStatusClass(notification.status)"
+      >
+        <!-- Notification Content -->
+        <div class="notification-content">
+          <div class="notification-main">
+            <div class="notification-header">
+              <span class="status-icon">{{ getStatusIcon(notification.status) }}</span>
+              <span class="notification-title">{{ notification.displayName }}</span>
+              <span class="notification-status">{{ getStatusText(notification.status) }}</span>
+            </div>
+            
+            <div class="notification-details">
+              <div class="notification-url">{{ notification.atlasUrl }}</div>
+              <div class="notification-timing">
+                <span class="start-time">התחיל: {{ formatTime(notification.startTime) }}</span>
+                <span class="duration" *ngIf="notification.duration">
+                  משך: {{ notification.duration }}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Progress indicator for running status -->
+          <div class="progress-indicator" *ngIf="notification.status === 'running'">
+            <div class="progress-bar">
+              <div class="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Remove Button -->
+        <button 
+          class="remove-button" 
+          (click)="removeNotification(notification.id)"
+          *ngIf="notification.status !== 'running'"
+        >
+          <span>×</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <ng-template #emptyState>
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h4 class="empty-title">{{ getEmptyStateMessage() }}</h4>
+        <p class="empty-subtitle">{{ getEmptyStateSubMessage() }}</p>
+      </div>
+    </ng-template>
+  </div>
+</div>
