@@ -1,4 +1,4 @@
-// services/notification.service.ts
+// services/notification.service.ts - תיקון בעיית הarray בתוך array
 import { Injectable, signal, computed } from "@angular/core";
 
 export type RunStatus = "running" | "done" | "failed" | "inactive";
@@ -14,7 +14,8 @@ export interface RunNotification {
 }
 
 export interface RunStatusUpdate {
-  "atlas-url": string;
+  atlasUrl?: string;
+  "atlas-url"?: string;
   status: string;
 }
 
@@ -30,21 +31,24 @@ export class NotificationService {
   readonly isOpen = this._isOpen.asReadonly();
   readonly hasNewNotifications = this._hasNewNotifications.asReadonly();
 
-  // Computed values
   readonly notificationCount = computed(() => this._notifications().length);
   readonly runningCount = computed(
     () => this._notifications().filter((n) => n.status === "running").length
   );
-  readonly activeNotifications = computed(() =>
-    this._notifications().filter((n) => n.status !== "inactive")
-  );
+  readonly activeNotifications = computed(() => this._notifications());
 
   constructor() {
-    this.setupStatusEndpoint();
+    this.loadFromCache();
+    this.fetchFromServer();
   }
 
-  // Add new run notification
   addRunNotification(atlasUrl: string): string {
+    
+    const existing = this._notifications().find(n => n.atlasUrl === atlasUrl);
+    if (existing) {
+      return existing.id;
+    }
+
     const id = this.generateId();
     const displayName = this.getDisplayName(atlasUrl);
 
@@ -56,43 +60,77 @@ export class NotificationService {
       startTime: new Date(),
     };
 
-    this._notifications.update((notifications) => [
-      ...notifications,
-      notification,
-    ]);
+    this._notifications.update((n) => {
+      const newList = [...n, notification];
+      return newList;
+    });
+    
     this._hasNewNotifications.set(true);
+    this.saveToCache();
 
     return id;
   }
 
-  // Update run status
   updateRunStatus(atlasUrl: string, status: string): boolean {
+    
+    if (!atlasUrl || atlasUrl === 'undefined') {
+      console.error("❌ Invalid atlasUrl");
+      return false;
+    }
+    
     const notifications = this._notifications();
-    const index = notifications.findIndex((n) => n.atlasUrl === atlasUrl);
+    const foundIndex = notifications.findIndex((n) => n.atlasUrl === atlasUrl);
 
-    if (index === -1) {
-      // Handle non-existent URL
-      this.addInactiveError(atlasUrl);
+    if (foundIndex === -1) {
       return false;
     }
 
-    const updatedNotifications = [...notifications];
-    const notification = updatedNotifications[index];
-
-    notification.status = this.mapStatus(status);
-    notification.endTime = new Date();
-    notification.duration = this.calculateDuration(
-      notification.startTime,
-      notification.endTime
-    );
+    const updatedNotifications = notifications.map((notification, index) => {
+      if (index === foundIndex) {
+        const updated = {
+          ...notification,
+          status: this.mapStatus(status),
+          endTime: new Date(),
+          duration: this.calculateDuration(notification.startTime, new Date())
+        };
+        return updated;
+      }
+      return notification;
+    });
 
     this._notifications.set(updatedNotifications);
     this._hasNewNotifications.set(true);
-
+    this.saveToCache();
+    
     return true;
   }
 
-  // Toggle notification panel
+  // תיקון: פונקציה רקורסיבית לטיפול בnested arrays
+  handleStatusUpdate(data: any): void {
+    this.processDataRecursively(data);
+  }
+
+  private processDataRecursively(data: any): void {
+    if (Array.isArray(data)) {
+      data.forEach((item, index) => {
+        this.processDataRecursively(item); // רקורסיה
+      });
+    } else if (data && typeof data === 'object') {
+      this.processSingleUpdate(data as RunStatusUpdate);
+    } else {
+    }
+  }
+
+  private processSingleUpdate(update: RunStatusUpdate): void {
+    const atlasUrl = update.atlasUrl || update["atlas-url"];
+    
+    if (!atlasUrl) {
+      return;
+    }
+    
+    this.updateRunStatus(atlasUrl, update.status);
+  }
+
   togglePanel(): void {
     this._isOpen.update((isOpen) => !isOpen);
     if (this._isOpen()) {
@@ -100,38 +138,24 @@ export class NotificationService {
     }
   }
 
-  // Close notification panel
   closePanel(): void {
     this._isOpen.set(false);
   }
 
-  // Clear all notifications
   clearAll(): void {
     this._notifications.set([]);
     this._hasNewNotifications.set(false);
+    this.saveToCache();
   }
 
-  // Remove specific notification
   removeNotification(id: string): void {
-    this._notifications.update((notifications) =>
-      notifications.filter((n) => n.id !== id)
-    );
+    this._notifications.update((n) => n.filter((x) => x.id !== id));
+    this.saveToCache();
   }
 
-  // Clear completed notifications
   clearCompleted(): void {
-    this._notifications.update((notifications) =>
-      notifications.filter((n) => n.status === "running")
-    );
-  }
-
-  // Private methods
-  private setupStatusEndpoint(): void {
-    // This would typically be handled by your backend/API layer
-    // For demo purposes, we'll just expose a method to handle status updates
-    console.log(
-      "Notification service initialized. Listening for status updates on /running-status"
-    );
+    this._notifications.update((n) => n.filter((x) => x.status === "running"));
+    this.saveToCache();
   }
 
   private generateId(): string {
@@ -139,37 +163,37 @@ export class NotificationService {
   }
 
   private getDisplayName(atlasUrl: string): string {
-    // Extract meaningful name from atlas URL
     if (!atlasUrl || atlasUrl === "noderprod") {
       return "Default Environment";
     }
-
-    // Remove common prefixes/suffixes and capitalize
     const cleanName = atlasUrl
       .replace(/^https?:\/\//, "")
       .replace(/\..*$/, "")
       .replace(/[_-]/g, " ");
-
     return cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
   }
 
   private mapStatus(status: string): RunStatus {
-    switch (status.toLowerCase()) {
-      case "done":
-      case "completed":
-      case "success":
-        return "done";
-      case "running":
-      case "in_progress":
-      case "pending":
-        return "running";
-      case "failed":
-      case "error":
-      case "cancelled":
-        return "failed";
-      default:
-        return "inactive";
-    }
+    const mapped = (() => {
+      switch (status.toLowerCase()) {
+        case "done":
+        case "completed":
+        case "success":
+          return "done";
+        case "running":
+        case "in_progress":
+        case "pending":
+          return "running";
+        case "failed":
+        case "error":
+        case "cancelled":
+          return "failed";
+        default:
+          return "inactive";
+      }
+    })();
+    
+    return mapped;
   }
 
   private calculateDuration(start: Date, end: Date): string {
@@ -183,27 +207,50 @@ export class NotificationService {
     return `${diffSecs}s`;
   }
 
-  private addInactiveError(atlasUrl: string): void {
-    const id = this.generateId();
-    const notification: RunNotification = {
-      id,
-      atlasUrl,
-      displayName: `Unknown: ${atlasUrl}`,
-      status: "inactive",
-      startTime: new Date(),
-      endTime: new Date(),
-      duration: "0s",
-    };
-
-    this._notifications.update((notifications) => [
-      ...notifications,
-      notification,
-    ]);
-    this._hasNewNotifications.set(true);
+  private saveToCache() {
+    try {
+      const notifications = this._notifications();
+      localStorage.setItem("notifications", JSON.stringify(notifications));
+    } catch (error) {
+      console.error("Failed to save to cache:", error);
+    }
   }
 
-  // Method to handle POST requests to /running-status
-  handleStatusUpdate(update: RunStatusUpdate): void {
-    this.updateRunStatus(update["atlas-url"], update.status);
+  private loadFromCache() {
+    try {
+      const data = localStorage.getItem("notifications");
+      if (data) {
+        const parsed: RunNotification[] = JSON.parse(data);
+        const restored = parsed.map((n) => ({
+          ...n,
+          startTime: new Date(n.startTime),
+          endTime: n.endTime ? new Date(n.endTime) : undefined,
+        }));
+        
+        this._notifications.set(restored);
+        console.log("💾 Loaded from cache:", restored.length);
+      }
+    } catch (error) {
+      console.warn("Failed to parse cached notifications:", error);
+      localStorage.removeItem("notifications");
+    }
+  }
+
+  private async fetchFromServer() {
+    try {
+      console.log("🌐 Fetching from server...");
+      const resp = await fetch("/running-status");
+      if (!resp.ok) {
+        console.log("🌐 Server response:", resp.status);
+        return;
+      }
+      
+      const updates = await resp.json();
+      console.log("🌐 Server data:", updates);
+      
+      this.handleStatusUpdate(updates);
+    } catch (e) {
+      console.error("Server fetch error:", e);
+    }
   }
 }

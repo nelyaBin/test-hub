@@ -1,69 +1,56 @@
-// services/status-endpoint.service.ts
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { NotificationService, RunStatusUpdate } from './notification.service';
+// services/status-endpoint.service.ts - עם debug
+import { Injectable, inject, NgZone } from "@angular/core";
+import { NotificationService, RunStatusUpdate } from "./notification.service";
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root",
 })
 export class StatusEndpointService {
-  private http = inject(HttpClient);
   private notificationService = inject(NotificationService);
+  private ngZone = inject(NgZone);
 
   constructor() {
+    console.log("🌐 StatusEndpointService starting...");
     this.setupStatusEndpoint();
   }
 
   private setupStatusEndpoint(): void {
-    // This is a mock implementation
-    // In a real app, you would set up an actual HTTP endpoint
-    // or WebSocket connection to listen for status updates
+    console.log("🌐 Setting up SSE connection to /events");
     
-    // Example of how to handle incoming status updates:
-    this.simulateStatusUpdates();
-  }
+    const eventSource = new EventSource("/events");
 
-  // Mock method to simulate receiving status updates
-  private simulateStatusUpdates(): void {
-    console.log('Status endpoint service initialized');
-    console.log('Listening for POST requests on /running-status');
-    
-    // Example: Simulate receiving a status update after 10 seconds
+    eventSource.onopen = () => {
+      console.log("✅ SSE connection opened");
+    };
+
+    eventSource.onmessage = (event) => {
+      console.log("📨 === RAW SSE MESSAGE ===");
+      console.log("Raw event:", event);
+      console.log("Raw data:", event.data);
+      
+      try {
+        const update: RunStatusUpdate = JSON.parse(event.data);
+        console.log("Parsed update:", update);
+        
+        this.ngZone.run(() => {
+          console.log("Running in NgZone...");
+          this.notificationService.handleStatusUpdate(update);
+        });
+      } catch (error) {
+        console.error("❌ Failed to parse SSE data:", error);
+        console.log("Raw data was:", event.data);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("❌ SSE connection error:", err);
+      console.log("EventSource readyState:", eventSource.readyState);
+      console.log("EventSource CONNECTING=0, OPEN=1, CLOSED=2");
+    };
+
+    // בדיקה נוספת
     setTimeout(() => {
-      this.handleStatusUpdate({
-        'atlas-url': 'itay',
-        status: 'done'
-      });
-    }, 10000);
-  }
-
-  // Method to handle incoming status updates
-  handleStatusUpdate(update: RunStatusUpdate): void {
-    console.log('Received status update:', update);
-    this.notificationService.handleStatusUpdate(update);
-  }
-
-  // Method for manually testing status updates
-  testStatusUpdate(atlasUrl: string, status: string): void {
-    this.handleStatusUpdate({
-      'atlas-url': atlasUrl,
-      status: status
-    });
+      console.log("SSE Connection state after 2s:", eventSource.readyState);
+    }, 2000);
   }
 }
-
-// Example usage in your app.component.ts or main component:
-/*
-import { StatusEndpointService } from './services/status-endpoint.service';
-
-export class AppComponent {
-  constructor(private statusEndpoint: StatusEndpointService) {
-    // Service will automatically initialize and listen for updates
-  }
-  
-  // Method to test notifications (for development)
-  testNotification(): void {
-    this.statusEndpoint.testStatusUpdate('itay', 'done');
-  }
-}
-*/
