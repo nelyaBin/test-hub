@@ -1,4 +1,4 @@
-import { Component, Input } from "@angular/core";
+import { Component, Input, computed } from "@angular/core";
 import { ComponentData, Test } from "../../models/component-data.model";
 import { CommonModule } from "@angular/common";
 import { ComponentDataService } from "../../services/component-data.service";
@@ -13,65 +13,35 @@ import { ComponentDataService } from "../../services/component-data.service";
 export class ComponentCardComponent {
   @Input() data!: ComponentData;
   @Input() isPreset: boolean = false;
-  @Input() allData: ComponentData[] = [];
+
+  // Computed signals לטיפול במצבי הבחירה
+  readonly allTestsSelected = computed(() => {
+    return this.service.getAllTestsSelectedState(this.data.componentName)();
+  });
+
+  readonly partialSelected = computed(() => {
+    return this.service.getPartialSelectionState(this.data.componentName)();
+  });
 
   constructor(private service: ComponentDataService) {}
 
   toggleSelection() {
-    const newState = !this.data.selected;
-    this.data.selected = newState;
-
-    if (!this.isPreset) {
-      // אם זה custom, נעדכן את הטסטים שלו
-      this.data.tests.forEach((test) => (test.selected = newState));
-
-      // אחרי שינוי ב-custom, נעדכן את כל ה-Presets הקשורים אליו
-      this.updatePresetsState();
-    }
-
     if (this.isPreset) {
-      // אם זה Preset, מסנכרנים את ה-customs שלו
-      this.service.syncGroupSelection(this.data.group, newState, this.allData);
+      this.service.togglePresetSelection(this.data.componentName);
+    } else {
+      this.service.toggleCustomSelection(this.data.componentName);
     }
   }
 
-  toggleTestSelection(test: Test) {
-    test.selected = !test.selected;
-    this.data.selected = this.data.tests.every((t) => t.selected);
-
+  toggleTestSelection(testIndex: number, event: Event) {
+    event.stopPropagation();
     if (!this.isPreset) {
-      // אם זה custom, נעדכן את ה-Presets אחרי שינוי בטסט
-      this.updatePresetsState();
+      this.service.toggleTestSelection(this.data.componentName, testIndex);
     }
   }
 
-  toggleExpand() {
-    this.data.isExpanded = !this.data.isExpanded;
-  }
-
-  get allTestsSelected(): boolean {
-    return !!this.data.tests?.length
-      ? this.data.tests.every((t) => !!t.selected)
-      : !!this.data.selected;
-  }
-
-  get partialSelected(): boolean {
-    if (!this.data.tests?.length) return false;
-    const selectedCount = this.data.tests.filter(t => t.selected).length;
-    return selectedCount > 0 && selectedCount < this.data.tests.length;
-  }
-
-  // 🔹 פונקציה חדשה – מעדכנת את מצב כל ה-Presets בהתאם ל־custom/טסטים
-  private updatePresetsState() {
-    this.allData
-      .filter(d => d.isPreset)
-      .forEach(preset => {
-        const affectedCustoms = this.allData.filter(
-          c => !c.isPreset && c.group.some(g => preset.group.includes(g))
-        );
-
-        // אם כל ה-customs המושפעים מה-Preset מסומנים, ה-Preset מסומן
-        preset.selected = affectedCustoms.every(c => c.selected);
-      });
+  toggleExpand(event: Event) {
+    event.stopPropagation();
+    this.service.toggleExpansion(this.data.componentName);
   }
 }
