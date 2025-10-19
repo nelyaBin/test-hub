@@ -1,93 +1,65 @@
-<div class="component-list-wrapper">
-  <!-- Search bar -->
-  <div class="search-bar">
-    <input
-      type="text"
-      placeholder="Search components..."
-      [value]="searchTerm()"
-      (input)="updateSearchTerm($any($event.target).value)"
-      class="search-input"
-    />
+<!-- components/component-list/component-list.component.html -->
+<div class="homepage-container">
+  <!-- Configuration Section -->
+  <app-test-configuration
+    [searchTerm]="searchTerm()"
+    [atlasUrl]="atlasUrl()"
+    [automationBranch]="automationBranch()"
+    (searchTermChange)="onSearchTermChange($event)"
+    (atlasUrlChange)="onAtlasUrlChange($event)"
+    (automationBranchChange)="onAutomationBranchChange($event)"
+  ></app-test-configuration>
+
+  <!-- Test Selection Area -->
+  <div class="selection-area">
+    <!-- Presets Section -->
+    <app-test-section
+      title="Presets"
+      icon="🎯"
+      [items]="filteredPresets()"
+      [selectedCount]="selectedPresetsCount()"
+      [hasSelectedItems]="hasSelectedPresets()"
+      [sectionType]="'presets'"
+      [noResultsMessage]="'No matching Presets found'"
+      (clearAll)="onClearAllPresets()"
+    ></app-test-section>
+
+    <!-- Customs Section -->
+    <app-test-section
+      title="Custom Components"
+      icon="🧩"
+      [items]="filteredCustoms()"
+      [selectedCount]="selectedCustomsCount()"
+      [hasSelectedItems]="hasSelectedCustoms()"
+      [sectionType]="'customs'"
+      [noResultsMessage]="'No matching Customs found'"
+      (clearAll)="onClearAllCustoms()"
+      (expandAll)="onExpandAll()"
+    ></app-test-section>
   </div>
 
-  <!-- Atlas URL field -->
-  <div class="atlas-url-container">
-    <input
-      type="text"
-      placeholder="Enter Atlas URL..."
-      [value]="atlasUrl()"
-      (input)="updateAtlasUrl($any($event.target).value)"
-      class="search-input"
-    />
-  </div>
+  <!-- Selected Tests Summary -->
+  <app-test-summary
+    [selectedTestsCount]="selectedTestsCount()"
+    [selectedTestTags]="selectedTestTags()"
+    [showDetails]="showSummaryDetails()"
+    [isVisible]="hasSelectedTests()"
+    (toggleDetails)="onToggleSummaryDetails()"
+  ></app-test-summary>
 
-  <div class="search-bar">
-    <input
-      type="text"
-      placeholder="Automation branch..."
-      [value]="automationBranch()"
-      (input)="updateAutomationBranch($any($event.target).value)"
-      class="search-input"
-    />
-  </div>
+  <!-- Action Area -->
+  <app-test-runner
+    [hasSelectedTests]="hasSelectedTests()"
+    [selectedTestsCount]="selectedTestsCount()"
+    [lastRunId]="lastRunId()"
+    [showRunId]="showRunId()"
+    [isRunning]="isRunning()"
+    (runTests)="onRunTests()"
+    (copyRunId)="onCopyRunId()"
+  ></app-test-runner>
 
-  <!-- Presets -->
-  <h2 class="section-title">Presets</h2>
-  <div class="cards-grid">
-    <app-component-card
-      *ngFor="let preset of filteredPresets()"
-      [data]="preset"
-      [isPreset]="true"
-    ></app-component-card>
-
-    <div *ngIf="!filteredPresets().length" class="no-results">
-      No matching Presets found
-    </div>
-  </div>
-
-  <!-- Customs -->
-  <h2 class="section-title">Customs</h2>
-  <div class="cards-grid">
-    <app-component-card
-      *ngFor="let customItem of filteredCustoms()"
-      [data]="customItem"
-      [isPreset]="false"
-    ></app-component-card>
-
-    <div *ngIf="!filteredCustoms().length" class="no-results">
-      No matching Customs found
-    </div>
-  </div>
-
-  <!-- Toast -->
-  <div *ngIf="toastMessage()" class="toast" [ngClass]="toastType()">
-    {{ toastMessage() }}
-  </div>
-</div>
-
-<!-- Fixed bottom section -->
-<div class="bottom-fixed-section">
-  <div *ngIf="lastRunId()" class="run-id-container">
-    <div class="run-id">{{ lastRunId() }}</div>
-    <div class="copy-btn-wrapper" (click)="copyRunId()">
-      <img src="assets/icons/copy-text.svg" alt="Copy" class="copy-btn" />
-      <span class="tooltip-text">העתק ללוח</span>
-    </div>
-  </div>
-
-  <!-- Run button -->
-  <div class="button-wrapper">
-    <button
-      class="button"
-      (click)="runAll()"
-      [disabled]="!hasSelectedTests()"
-      [title]="
-        !hasSelectedTests()
-          ? 'Select at least one test, preset, or custom to enable running.'
-          : ''
-      "
-    >
-      Run
-    </button>
-  </div>
+  <!-- Toast Messages -->
+  <app-toast
+    [toast]="currentToast()"
+  ></app-toast>
 </div>

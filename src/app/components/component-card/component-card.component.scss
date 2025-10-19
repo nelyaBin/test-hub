@@ -92,41 +92,104 @@
   padding: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
+/* ---------- Individual Test Item ---------- */
 .test-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
   font-size: 14px;
   color: $color-text;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05); // subtle hover
+  }
 }
 
+/* ---------- Test Text ---------- */
 .test-name a,
 .test-name span {
   cursor: pointer;
   color: $color-text;
   text-decoration: none;
   transition: color 0.2s ease;
-}
 
-.test-name a:hover,
-.test-name span:hover {
-  color: $color-primary; /* כחול כהה יותר להובר */
+  &:hover {
+    color: $color-primary; // hover color
+  }
 }
 
 .test-owner {
   color: #aaa;
   font-size: 13px;
+  margin-left: auto;
 }
 
 .test-tag {
-  background: darken($color-bg, 10%);
+  background: rgba(255, 255, 255, 0.08);
   color: #90caf9;
   padding: 2px 6px;
   border-radius: 6px;
   font-size: 12px;
+  font-style: italic;
+}
+
+/* ---------- Custom Checkbox ---------- */
+.test-item input[type="checkbox"] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #555;
+  border-radius: 4px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:checked {
+    background: $color-primary; // blue from theme
+    border-color: $color-primary;
+  }
+
+  &:checked::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
+  }
+}
+
+/* ---------- Animation for hover / selection ---------- */
+.test-item input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.test-item .test-name a {
+  transition: color 0.2s ease;
 }
 
 .expand-btn {
@@ -344,7 +407,7 @@
   .expand-icon {
     width: 28px;
     height: 28px;
-    color: $color-primary; 
+    color: $color-primary;
     transform: rotate(90deg);
     transition: transform 0.3s ease, color 0.2s ease;
 

@@ -1,163 +1,537 @@
 import { ComponentData } from "../../app/models/component-data.model";
 
+
 export const mockData: ComponentData[] = [
-    {
-      componentName: "Login Preset",
-      isPreset: true,
-      selected: false,
-      infoText: "Handles login functionality",
-      tests: [],
-      group: ["auth"],
-      isExpanded: false
-    },
-    {
-      componentName: "Signup Preset",
-      isPreset: true,
-      selected: false,
-      infoText: "Handles signup functionality",
-      tests: [],
-      group: ["auth"],
-      isExpanded: false
-    },
-    {
-      componentName: "Profile Preset",
-      isPreset: true,
-      selected: false,
-      infoText: "Profile management",
-      tests: [],
-      group: ["profile"],
-      isExpanded: false
-    },
-    {
-      componentName: "Settings Preset",
-      isPreset: true,
-      selected: false,
-      infoText: "Settings & preferences",
-      tests: [],
-      group: ["settings"],
-      isExpanded: false
-    },
-    {
-      componentName: "Login Feature",
-      isPreset: false,
-      selected: false,
-      infoText: "Custom login checks",
-      tests: [
-        {
-          testName: "Check Login Button",
-          testOwner: "Alice",
-          testTag: "auth",
-          selected: false,
-          link: "https://www.youtube.com/"
-        },
-        {
-          testName: "Check Password Field",
-          testOwner: "Bob",
-          testTag: "auth",
-          selected: false
-        }
-      ],
-      group: ["auth"],
-      isExpanded: false
-    },
-    {
-      componentName: "Signup Feature",
-      isPreset: false,
-      selected: false,
-      infoText: "Custom signup flow",
-      tests: [
-        {
-          testName: "Check Email Field",
-          testOwner: "Alice",
-          testTag: "auth",
-          selected: false
-        },
-        {
-          testName: "Check Password Strength",
-          testOwner: "Bob",
-          testTag: "auth",
-          selected: false
-        }
-      ],
-      group: ["auth"],
-      isExpanded: false
-    },
-    {
-      componentName: "Profile Edit Feature",
-      isPreset: false,
-      selected: false,
-      infoText: "Edit profile info",
-      tests: [
-        {
-          testName: "Edit Name",
-          testOwner: "Charlie",
-          testTag: "profile",
-          selected: false
-        },
-        {
-          testName: "Edit Picture",
-          testOwner: "Dana",
-          testTag: "profile",
-          selected: false
-        }
-      ],
-      group: ["profile"],
-      isExpanded: false
-    },
-    {
-      componentName: "Profile Privacy Feature",
-      isPreset: false,
-      selected: false,
-      infoText: "Manage privacy settings",
-      tests: [
-        {
-          testName: "Toggle Privacy",
-          testOwner: "Charlie",
-          testTag: "profile",
-          selected: false,
-          testGroup: ["auth"]
-        }
-      ],
-      group: ["profile"],
-      isExpanded: false
-    },
-    {
-      componentName: "Settings Notifications Feature",
-      isPreset: false,
-      selected: false,
-      infoText: "Notifications settings",
-      tests: [
-        {
-          testName: "Enable Email Alerts",
-          testOwner: "Eve",
-          testTag: "settings",
-          selected: false
-        },
-        {
-          testName: "Enable Push Alerts",
-          testOwner: "Eve",
-          testTag: "settings",
-          selected: false,
-          testGroup: ["auth"]
-        }
-      ],
-      group: ["settings"],
-      isExpanded: false
-    },
-    {
-      componentName: "Settings Theme Feature",
-      isPreset: false,
-      selected: false,
-      infoText: "Change UI theme",
-      tests: [
-        {
-          testName: "Dark Mode",
-          testOwner: "Eve",
-          testTag: "settings",
-          selected: false
-        }
-      ],
-      group: ["settings"],
-      isExpanded: false
-    }
-  ];
+  // ----- PRESETS (15) -----
+  {
+    componentName: "Login Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Handles login functionality",
+    tests: [],
+    group: ["auth"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Signup Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Handles signup functionality",
+    tests: [],
+    group: ["auth"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Profile Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Profile management",
+    tests: [],
+    group: ["profile"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Settings Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Settings & preferences",
+    tests: [],
+    group: ["settings"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Payment Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Payment gateway checks",
+    tests: [],
+    group: ["payments"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Cart Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Shopping cart",
+    tests: [],
+    group: ["ecommerce"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Order Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Order processing",
+    tests: [],
+    group: ["ecommerce"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Analytics Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Track analytics",
+    tests: [],
+    group: ["tracking"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Search Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Search system",
+    tests: [],
+    group: ["search"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Chat Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Chat system",
+    tests: [],
+    group: ["communication"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Notifications Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Notifications & alerts",
+    tests: [],
+    group: ["communication"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Reports Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Reporting tools",
+    tests: [],
+    group: ["analytics"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Security Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Security baseline",
+    tests: [],
+    group: ["security"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Backup Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "Backup and restore",
+    tests: [],
+    group: ["maintenance"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Monitoring Preset",
+    isPreset: true,
+    selected: false,
+    infoText: "System monitoring",
+    tests: [],
+    group: ["maintenance"],
+    isExpanded: false,
+  },
+
+  // ----- NON-PRESETS (~20) -----
+  {
+    componentName: "Login Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Custom login checks",
+    tests: [
+      {
+        testName: "Check Login Button",
+        testOwner: "Alice",
+        testTag: "auth",
+        selected: false,
+      },
+      {
+        testName: "Check Password Field",
+        testOwner: "Bob",
+        testTag: "auth",
+        selected: false,
+      },
+      {
+        testName: "Remember Me Toggle",
+        testOwner: "Chris",
+        testTag: "auth",
+        selected: false,
+      },
+    ],
+    group: ["auth"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Signup Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Custom signup flow",
+    tests: [
+      {
+        testName: "Check Email Field",
+        testOwner: "Alice",
+        testTag: "auth",
+        selected: false,
+      },
+      {
+        testName: "Check Password Strength",
+        testOwner: "Bob",
+        testTag: "auth",
+        selected: false,
+      },
+      {
+        testName: "Confirm Password Match",
+        testOwner: "Dana",
+        testTag: "auth",
+        selected: false,
+      },
+    ],
+    group: ["auth"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Profile Edit Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Edit profile info",
+    tests: [
+      {
+        testName: "Edit Name",
+        testOwner: "Charlie",
+        testTag: "profile",
+        selected: false,
+      },
+      {
+        testName: "Edit Picture",
+        testOwner: "Dana",
+        testTag: "profile",
+        selected: false,
+      },
+      {
+        testName: "Edit Bio",
+        testOwner: "Eve",
+        testTag: "profile",
+        selected: false,
+      },
+    ],
+    group: ["profile"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Profile Privacy Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Manage privacy settings",
+    tests: [
+      {
+        testName: "Toggle Privacy",
+        testOwner: "Charlie",
+        testTag: "profile",
+        selected: false,
+        testGroup: ["auth"],
+      },
+      {
+        testName: "Block User",
+        testOwner: "Dana",
+        testTag: "profile",
+        selected: false,
+      },
+      {
+        testName: "Hide Email",
+        testOwner: "Eve",
+        testTag: "profile",
+        selected: false,
+      },
+    ],
+    group: ["profile"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Settings Notifications Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Notifications settings",
+    tests: [
+      {
+        testName: "Enable Email Alerts",
+        testOwner: "Eve",
+        testTag: "settings",
+        selected: false,
+      },
+      {
+        testName: "Enable Push Alerts",
+        testOwner: "Eve",
+        testTag: "settings",
+        selected: false,
+        testGroup: ["auth"],
+      },
+      {
+        testName: "Enable SMS Alerts",
+        testOwner: "Frank",
+        testTag: "settings",
+        selected: false,
+      },
+    ],
+    group: ["settings"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Settings Theme Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Change UI theme",
+    tests: [
+      {
+        testName: "Dark Mode",
+        testOwner: "Eve",
+        testTag: "settings",
+        selected: false,
+      },
+      {
+        testName: "Light Mode",
+        testOwner: "Eve",
+        testTag: "settings",
+        selected: false,
+      },
+      {
+        testName: "System Mode",
+        testOwner: "Frank",
+        testTag: "settings",
+        selected: false,
+      },
+    ],
+    group: ["settings"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Payment Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Payment testing",
+    tests: [
+      {
+        testName: "Credit Card Validation",
+        testOwner: "Alice",
+        testTag: "payments",
+        selected: false,
+      },
+      {
+        testName: "PayPal Checkout",
+        testOwner: "Bob",
+        testTag: "payments",
+        selected: false,
+      },
+      {
+        testName: "Refund Process",
+        testOwner: "Charlie",
+        testTag: "payments",
+        selected: false,
+      },
+    ],
+    group: ["payments"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Cart Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Cart checks",
+    tests: [
+      {
+        testName: "Add Item",
+        testOwner: "Alice",
+        testTag: "ecommerce",
+        selected: false,
+      },
+      {
+        testName: "Remove Item",
+        testOwner: "Bob",
+        testTag: "ecommerce",
+        selected: false,
+      },
+      {
+        testName: "Update Quantity",
+        testOwner: "Charlie",
+        testTag: "ecommerce",
+        selected: false,
+      },
+    ],
+    group: ["ecommerce"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Search Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Search enhancements",
+    tests: [
+      {
+        testName: "Basic Search",
+        testOwner: "Alice",
+        testTag: "search",
+        selected: false,
+      },
+      {
+        testName: "Advanced Filters",
+        testOwner: "Dana",
+        testTag: "search",
+        selected: false,
+      },
+      {
+        testName: "Autocomplete",
+        testOwner: "Eve",
+        testTag: "search",
+        selected: false,
+      },
+    ],
+    group: ["search"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Chat Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Custom chat checks",
+    tests: [
+      {
+        testName: "Send Message",
+        testOwner: "Alice",
+        testTag: "communication",
+        selected: false,
+      },
+      {
+        testName: "Receive Message",
+        testOwner: "Bob",
+        testTag: "communication",
+        selected: false,
+      },
+      {
+        testName: "Typing Indicator",
+        testOwner: "Charlie",
+        testTag: "communication",
+        selected: false,
+      },
+    ],
+    group: ["communication"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Report Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Generate reports",
+    tests: [
+      {
+        testName: "Monthly Report",
+        testOwner: "Dana",
+        testTag: "analytics",
+        selected: false,
+      },
+      {
+        testName: "Annual Report",
+        testOwner: "Eve",
+        testTag: "analytics",
+        selected: false,
+      },
+      {
+        testName: "Custom Report",
+        testOwner: "Frank",
+        testTag: "analytics",
+        selected: false,
+      },
+    ],
+    group: ["analytics"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Security Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Security rules",
+    tests: [
+      {
+        testName: "SQL Injection",
+        testOwner: "Alice",
+        testTag: "security",
+        selected: false,
+      },
+      {
+        testName: "XSS Attack",
+        testOwner: "Bob",
+        testTag: "security",
+        selected: false,
+      },
+      {
+        testName: "Brute Force",
+        testOwner: "Charlie",
+        testTag: "security",
+        selected: false,
+      },
+    ],
+    group: ["security"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Backup Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Backup system",
+    tests: [
+      {
+        testName: "Daily Backup",
+        testOwner: "Alice",
+        testTag: "maintenance",
+        selected: false,
+      },
+      {
+        testName: "Weekly Backup",
+        testOwner: "Bob",
+        testTag: "maintenance",
+        selected: false,
+      },
+      {
+        testName: "Restore Process",
+        testOwner: "Charlie",
+        testTag: "maintenance",
+        selected: false,
+      },
+    ],
+    group: ["maintenance"],
+    isExpanded: false,
+  },
+  {
+    componentName: "Monitoring Feature",
+    isPreset: false,
+    selected: false,
+    infoText: "Monitor system health",
+    tests: [
+      {
+        testName: "CPU Usage",
+        testOwner: "Alice",
+        testTag: "maintenance",
+        selected: false,
+      },
+      {
+        testName: "Memory Usage",
+        testOwner: "Bob",
+        testTag: "maintenance",
+        selected: false,
+      },
+      {
+        testName: "Disk Usage",
+        testOwner: "Charlie",
+        testTag: "maintenance",
+        selected: false,
+      },
+    ],
+    group: ["maintenance"],
+    isExpanded: false,
+  },
+];

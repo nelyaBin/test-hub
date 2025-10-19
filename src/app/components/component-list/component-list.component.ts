@@ -1,134 +1,145 @@
+// components/component-list/component-list.component.ts
 import { CommonModule } from "@angular/common";
-import { Component, OnInit, computed, signal } from "@angular/core";
+import { Component, inject } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { ComponentData } from "../../models/component-data.model";
-import { ComponentDataService } from "../../services/component-data.service";
-import { ComponentCardComponent } from "../component-card/component-card.component";
+
+// Components
+import { TestConfigurationComponent } from "../test-configuration/test-configuration.component";
+import { TestSectionComponent } from "../test-section/test-section.component";
+import { TestSummaryComponent } from "../test-summary/test-summary.component";
+import { TestRunnerComponent } from "../test-runner/test-runner.component";
+import { ToastComponent } from "../toast/toast.component";
+
+// Services
+import { TestConfigurationManagerService } from "../../services/test-configuration-manager.service";
+import { TestSelectionManagerService } from "../../services/test-selection-manager.service";
+import { TestExpansionManagerService } from "../../services/test-expansion-manager.service";
+import { TestRunnerService, TestRunRequest } from "../../services/test-runner.service";
+import { ToastManagerService } from "../../services/toast-manager.service";
+import { TestFilteringManagerService } from "../../services/test-filtering-manager.service";
+import { UiStateManagerService } from "../../services/ui-state-manager.service";
 
 @Component({
   selector: "app-component-list",
   templateUrl: "./component-list.component.html",
   styleUrls: ["./component-list.component.scss"],
   standalone: true,
-  imports: [CommonModule, FormsModule, ComponentCardComponent],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    TestConfigurationComponent,
+    TestSectionComponent,
+    TestSummaryComponent,
+    TestRunnerComponent,
+    ToastComponent
+  ],
 })
-export class ComponentListComponent implements OnInit {
-  searchTerm = signal("");
-  atlasUrl = signal("");
-  automationBranch = signal("");
-  toastMessage = signal<string | null>(null);
-  toastType = signal<"success" | "error">("success");
-  lastRunId = signal<string | null>(null);
+export class ComponentListComponent {
 
-  // Computed signals לנתונים מסוננים
-  readonly filteredPresets = computed(() => 
-    this.dataService.presets().filter((c) =>
-      c.componentName.toLowerCase().includes(this.searchTerm().toLowerCase())
-    )
-  );
+  // Inject services using inject() function
+  private readonly configurationManager = inject(TestConfigurationManagerService);
+  private readonly selectionManager = inject(TestSelectionManagerService);
+  private readonly expansionManager = inject(TestExpansionManagerService);
+  private readonly runnerService = inject(TestRunnerService);
+  private readonly toastManager = inject(ToastManagerService);
+  private readonly filteringManager = inject(TestFilteringManagerService);
+  private readonly uiStateManager = inject(UiStateManagerService);
 
-  readonly filteredCustoms = computed(() => 
-    this.dataService.customs().filter((c) =>
-      c.componentName.toLowerCase().includes(this.searchTerm().toLowerCase())
-    )
-  );
+  // Expose computed signals from managers
+  readonly searchTerm = this.configurationManager.searchTerm;
+  readonly atlasUrl = this.configurationManager.atlasUrl;
+  readonly automationBranch = this.configurationManager.automationBranch;
+  
+  readonly filteredPresets = this.filteringManager.filteredPresets;
+  readonly filteredCustoms = this.filteringManager.filteredCustoms;
+  
+  readonly hasSelectedTests = this.selectionManager.hasSelectedTests;
+  readonly selectedPresetsCount = this.selectionManager.selectedPresetsCount;
+  readonly selectedCustomsCount = this.selectionManager.selectedCustomsCount;
+  readonly selectedTestsCount = this.selectionManager.selectedTestsCount;
+  readonly hasSelectedPresets = this.selectionManager.hasSelectedPresets;
+  readonly hasSelectedCustoms = this.selectionManager.hasSelectedCustoms;
+  readonly selectedTestTags = this.selectionManager.selectedTestTags;
+  
+  readonly showSummaryDetails = this.uiStateManager.showSummaryDetails;
+  
+  readonly lastRunId = this.runnerService.lastRunId;
+  readonly showRunId = this.runnerService.showRunId;
+  readonly isRunning = this.runnerService.isRunning;
+  
+  readonly currentToast = this.toastManager.currentToast;
 
-  readonly hasSelectedTests = computed(() => {
-    return this.dataService.hasSelectedTests();
-  });
-
-  constructor(private dataService: ComponentDataService) {}
-
-  ngOnInit() {
-    // הנתונים כבר נטענים באופן אוטומטי בשירות
+  // Configuration handlers
+  onSearchTermChange(value: string): void {
+    this.configurationManager.updateSearchTerm(value);
   }
 
-  private generateUUID(length: number = 10): string {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let uuid = "";
-    for (let i = 0; i < length; i++) {
-      uuid += chars.charAt(Math.floor(Math.random() * chars.length));
+  onAtlasUrlChange(value: string): void {
+    this.configurationManager.updateAtlasUrl(value);
+  }
+
+  onAutomationBranchChange(value: string): void {
+    this.configurationManager.updateAutomationBranch(value);
+  }
+
+  // Section handlers
+  onClearAllPresets(): void {
+    const clearedCount = this.selectionManager.clearAllPresets();
+    this.toastManager.showSelectionCleared('preset', clearedCount);
+  }
+
+  onClearAllCustoms(): void {
+    const clearedCount = this.selectionManager.clearAllCustoms();
+    this.toastManager.showSelectionCleared('custom', clearedCount);
+  }
+
+  onExpandAll(): void {
+    const result = this.expansionManager.toggleExpandAll();
+    this.toastManager.showExpansionToggled(result.newState, result.affectedCount);
+  }
+
+  // Summary handlers
+  onToggleSummaryDetails(): void {
+    this.uiStateManager.toggleSummaryDetails();
+  }
+
+  // Runner handlers
+  async onRunTests(): Promise<void> {
+    if (!this.hasSelectedTests()) {
+      this.toastManager.showNoTestsSelected();
+      return;
     }
-    return uuid;
-  }
 
-  /** מחשב את כמות הפודים הדרושה */
-  private calculatePods(): number {
-    let count = 0;
-    this.dataService.customs().forEach((card) => {
-      if (card.selected || card.tests.some((t) => t.selected)) {
-        count++;
-      }
-    });
-    return count > 0 ? count : 1; // ברירת מחדל לפחות 1
-  }
+    const runId = this.runnerService.generateRunId(10);
+    const selectedTestTags = this.selectedTestTags();
+    const testTagsString = selectedTestTags.map(tag => `@${tag}`).join('|');
+    const podCount = this.selectionManager.calculateRequiredPods();
 
-  async runAll() {
-    if (!this.hasSelectedTests()) return;
-    
-    const reqUrl = "https://example.com/run"; // החלף ל-URL שלך
-    const selectedTestTags = this.dataService.getSelectedTestTags();
-    const testTagsString = selectedTestTags
-      .map((tag) => `@${tag}`)
-      .join("|");
-
-    // צור מזהה יוניקי חדש
-    this.lastRunId.set(this.generateUUID(10));
-
-    // חישוב כמות פודים
-    const podCount = this.calculatePods();
-
-    const body = {
-      automationUrl: this.atlasUrl(),
-      testtags: testTagsString,
-      automationBranch: this.automationBranch(),
-      runId: this.lastRunId(), // שולח את המזהה עם הבקשה
-      podCount: podCount, // שולח את כמות הפודים
+    const request: TestRunRequest = {
+      automationUrl: this.configurationManager.getAtlasUrlOrDefault(),
+      testags: testTagsString,
+      automationBranch: this.configurationManager.getAutomationBranchOrDefault(),
+      runId,
+      podCount
     };
 
-    try {
-      const res = await fetch(reqUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-      console.log("POST sent successfully:", data);
-      this.showToast("Automation started successfully!", "success");
-    } catch (err: any) {
-      console.error("Error sending POST:", err);
-      this.showToast(`Failed to start automation: ${err.message}`, "error");
+    this.toastManager.showSuccess('Starting automation...');
+
+    const result = await this.runnerService.executeTests(request);
+
+    if (result.success) {
+      this.toastManager.showRunStarted(result.testCount);
+    } else {
+      this.toastManager.showRunFailed(result.error || 'Unknown error');
     }
   }
 
-  copyRunId() {
-    const runId = this.lastRunId();
-    if (runId) {
-      navigator.clipboard.writeText(runId);
-      this.showToast("Run ID copied to clipboard!", "success");
+  async onCopyRunId(): Promise<void> {
+    const success = await this.runnerService.copyRunIdToClipboard();
+    if (success) {
+      this.toastManager.showRunIdCopied();
+    } else {
+      this.toastManager.showError('Failed to copy Run ID');
     }
-  }
-
-  showToast(message: string, type: "success" | "error") {
-    this.toastMessage.set(message);
-    this.toastType.set(type);
-    setTimeout(() => {
-      this.toastMessage.set(null);
-    }, 3000); // מציג 3 שניות
-  }
-
-  // Helper methods for template binding
-  updateSearchTerm(value: string) {
-    this.searchTerm.set(value);
-  }
-
-  updateAtlasUrl(value: string) {
-    this.atlasUrl.set(value);
-  }
-
-  updateAutomationBranch(value: string) {
-    this.automationBranch.set(value);
   }
 }

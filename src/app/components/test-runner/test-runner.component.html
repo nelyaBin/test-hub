@@ -1,0 +1,45 @@
+<div class="action-area">
+  <div class="run-section">
+    @if (lastRunId && showRunId) {
+      <div class="run-info">
+        <!-- 
+        <div class="run-id-section">
+          <div class="run-label">Run ID</div>
+          <div class="run-id-display" [class.visible]="showRunId">
+            <input 
+              type="text" 
+              [value]="lastRunId" 
+              readonly 
+              class="run-id"
+            />
+            <button 
+              class="copy-btn" 
+              (click)="onCopyRunId()"
+            >
+              📋 Copy
+            </button>
+          </div>
+        </div> 
+        -->
+      </div>
+    }
+
+    <button
+      class="run-button"
+      (click)="onRunTests()"
+      [disabled]="!hasSelectedTests || isRunning"
+      [class.pulse]="hasSelectedTests && !isRunning"
+    >
+      <span class="run-icon">🚀</span>
+      <span class="run-text">
+        {{ hasSelectedTests ? "Run Selected Tests" : "Select Tests to Run" }}
+      </span>
+
+      @if (hasSelectedTests) {
+        <span class="test-count">
+          ({{ selectedTestsCount }})
+        </span>
+      }
+    </button>
+  </div>
+</div>

@@ -1,0 +1,23 @@
+@if (isVisible) {
+<div class="summary-bar">
+  <div class="summary-content">
+    <span class="summary-icon">✓</span>
+    <span class="summary-text">
+      {{ selectedTestsCount }} tests selected for execution
+    </span>
+    <button class="view-details-btn" (click)="onToggleDetails()">
+      {{ showDetails ? "Hide" : "View" }} Details
+    </button>
+  </div>
+
+  @if (showDetails) {
+  <div class="summary-details">
+    <div class="selected-tests-list">
+      @for (tag of selectedTestTags; track tag; let last = $last) {
+      <span class="test-tag-chip"> {{ tag }}@if (!last) {, } </span>
+      }
+    </div>
+  </div>
+  }
+</div>
+}

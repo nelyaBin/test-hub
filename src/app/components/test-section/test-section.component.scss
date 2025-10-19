@@ -1,0 +1,103 @@
+// components/test-section/test-section.component.scss
+@import "../../../styles.scss";
+
+.section-container {
+  background: lighten($color-bg, 2%);
+  border-radius: 16px;
+  padding: 24px;
+  border-left: 4px solid;
+
+  &.presets-section {
+    border-left-color: #ff6b35;
+  }
+
+  &.customs-section {
+    border-left-color: #42a5f5;
+  }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  color: $color-text;
+  margin: 0;
+
+  .preset-icon {
+    color: #ff6b35;
+  }
+
+  .custom-icon {
+    color: #42a5f5;
+  }
+
+  .selection-count {
+    font-size: 14px;
+    background: $color-secondary;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+}
+
+.section-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.clear-btn,
+.expand-all-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid $color-border;
+  border-radius: 6px;
+  color: $color-text;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba($color-secondary, 0.1);
+    border-color: $color-secondary;
+  }
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  text-align: center;
+  font-size: 16px;
+  color: darken($color-text, 30%);
+  background: darken($color-bg, 2%);
+  border: 2px dashed $color-border;
+  border-radius: 12px;
+  font-style: italic;
+
+  .no-results-icon {
+    font-size: 24px;
+    opacity: 0.5;
+  }
+}
