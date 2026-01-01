@@ -1,9 +1,22 @@
-import { Component, signal, computed, ElementRef, ViewChild, AfterViewInit, effect, OnDestroy } from "@angular/core";
+import {
+  Component,
+  signal,
+  computed,
+  ElementRef,
+  ViewChild,
+  AfterViewInit,
+  effect,
+  OnDestroy,
+} from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 
 export type TestType = "load" | "stress" | "spike" | "soak" | "custom";
-export type ScenarioType = "fixed-vus" | "ramping-vus" | "constant-arrival-rate";
+export type ScenarioType =
+  | "fixed-vus"
+  | "ramping-vus"
+  | "constant-arrival-rate";
 
 export interface ControlPoint {
   time: number;
@@ -43,7 +56,7 @@ export interface ExecutionStatus {
   styleUrls: ["./ecstasy.component.scss"],
 })
 export class EcstasyComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('graphCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild("graphCanvas") canvasRef!: ElementRef<HTMLCanvasElement>;
 
   readonly selectedComponent = signal<string>("");
   readonly components = signal<string[]>([
@@ -67,7 +80,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   readonly controlPoints = signal<ControlPoint[]>([
     { time: 0, vus: 0 },
-    { time: 60, vus: 10 }
+    { time: 60, vus: 10 },
   ]);
   readonly showK6Phases = signal<boolean>(false);
   readonly draggedPointIndex = signal<number | null>(null);
@@ -75,6 +88,8 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   readonly hoverPosition = signal<{ x: number; y: number } | null>(null);
   readonly previewPoint = signal<ControlPoint | null>(null);
   private previousDurationUnit: "seconds" | "minutes" = "seconds";
+  private wasDragging = false;
+  private mouseDownTime = 0;
 
   readonly showAdvancedOptions = signal<boolean>(false);
   readonly headers = signal<{ key: string; value: string }[]>([
@@ -88,12 +103,13 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   ]);
 
   readonly executionStatus = signal<ExecutionStatus>({ status: "idle" });
+  readonly showResultsIframe = signal<boolean>(false);
   private executionInterval?: number;
 
   private ctx: CanvasRenderingContext2D | null = null;
   private readonly padding = { top: 40, right: 40, bottom: 60, left: 60 };
   private readonly pointRadius = 7;
-  private readonly hitRadius = 16;
+  private readonly hitRadius = 20;
 
   readonly isConfigurationValid = computed(() => {
     return (
@@ -112,7 +128,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   readonly maxVUs = computed(() => {
     const points = this.controlPoints();
-    return Math.max(this.virtualUsers(), ...points.map(p => p.vus), 1);
+    return Math.max(this.virtualUsers(), ...points.map((p) => p.vus), 1);
   });
 
   readonly totalDurationSeconds = computed(() => {
@@ -133,24 +149,24 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     { value: "constant-arrival-rate", label: "Constant Arrival Rate" },
   ];
 
-  constructor() {
+  constructor(private sanitizer: DomSanitizer) {
     let isFirstRun = true;
-    
+
     effect(() => {
       const vus = this.virtualUsers();
       const duration = this.totalDurationSeconds();
       const scenario = this.scenarioType();
       const testTypeValue = this.testType();
       const currentUnit = this.durationUnit();
-      
+
       // Check if duration unit changed - if so, convert control points
       if (currentUnit !== this.previousDurationUnit) {
         this.convertControlPointsForDurationUnit(currentUnit);
         this.previousDurationUnit = currentUnit;
       }
-      
+
       // Only update from config if NOT in custom mode and not being dragged
-      if (testTypeValue !== 'custom' && this.draggedPointIndex() === null) {
+      if (testTypeValue !== "custom" && this.draggedPointIndex() === null) {
         if (!isFirstRun) {
           this.updateControlPointsFromConfig();
         }
@@ -183,44 +199,45 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   private initializeCanvas(): void {
     const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) {
-      console.error('Canvas element not found');
-      return;
-    }
+    if (!canvas) return;
 
     const parent = canvas.parentElement;
-    if (!parent) {
-      console.error('Canvas parent element not found');
-      return;
-    }
+    if (!parent) return;
 
     const rect = parent.getBoundingClientRect();
-    const width = rect.width || 800;
-    const height = 400;
-    
-    canvas.width = width;
-    canvas.height = height;
-    
-    this.ctx = canvas.getContext('2d');
-    if (this.ctx) {
-      this.ctx.imageSmoothingEnabled = true;
-      this.ctx.imageSmoothingQuality = 'high';
-      console.log('Canvas initialized:', width, 'x', height);
-    } else {
-      console.error('Could not get canvas context');
-    }
+    const cssWidth = rect.width || 800;
+    const cssHeight = 400;
+
+    const dpr = window.devicePixelRatio || 1;
+
+    // גודל ויזואלי (CSS)
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+
+    // גודל פנימי אמיתי
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+
+    this.ctx = canvas.getContext("2d");
+    if (!this.ctx) return;
+
+    // סקלת קואורדינטות
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = "high";
   }
 
   private setupCanvasListeners(): void {
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
-    canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-    canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
-    canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
-    canvas.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
-    canvas.addEventListener('click', this.handleClick.bind(this));
-    canvas.addEventListener('contextmenu', this.handleRightClick.bind(this));
+    canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
+    canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
+    canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
+    canvas.addEventListener("mouseleave", this.handleMouseLeave.bind(this));
+    canvas.addEventListener("click", this.handleClick.bind(this));
+    canvas.addEventListener("contextmenu", this.handleRightClick.bind(this));
   }
 
   private handleMouseMove(e: MouseEvent): void {
@@ -234,53 +251,62 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.hoverPosition.set({ x, y });
 
     const draggedIdx = this.draggedPointIndex();
-    const isCustomMode = this.testType() === 'custom';
-    
+    const isCustomMode = this.testType() === "custom";
+
     if (draggedIdx !== null && isCustomMode) {
+      this.wasDragging = true;
       this.updatePointPosition(draggedIdx, x, y);
-      canvas.style.cursor = 'grabbing';
+      canvas.style.cursor = "grabbing";
     } else {
       const hoveredIdx = this.findPointAtPosition(x, y);
       this.hoveredPointIndex.set(hoveredIdx);
-      
+
       if (hoveredIdx !== null && isCustomMode) {
-        canvas.style.cursor = 'grab';
+        canvas.style.cursor = "grab";
         this.previewPoint.set(null);
       } else if (isCustomMode) {
-        canvas.style.cursor = 'crosshair';
+        canvas.style.cursor = "crosshair";
         const previewPt = this.getPreviewPoint(x, y);
         this.previewPoint.set(previewPt);
       } else {
-        canvas.style.cursor = 'default';
+        canvas.style.cursor = "default";
         this.previewPoint.set(null);
       }
     }
   }
 
   private handleMouseDown(e: MouseEvent): void {
-    if (this.testType() !== 'custom') return;
+    if (this.testType() !== "custom") return;
 
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = this.getMousePos(e);
 
     const pointIdx = this.findPointAtPosition(x, y);
     if (pointIdx !== null) {
       this.draggedPointIndex.set(pointIdx);
-      canvas.style.cursor = 'grabbing';
+      this.wasDragging = false;
+      this.mouseDownTime = Date.now();
+      canvas.style.cursor = "grabbing";
       this.previewPoint.set(null);
     }
   }
 
   private handleMouseUp(): void {
     this.draggedPointIndex.set(null);
+
+    // 🔑 אם גררנו – חוסמים רק את הקליק הקרוב
+    if (this.wasDragging) {
+      setTimeout(() => {
+        this.wasDragging = false;
+      }, 0);
+    }
+
     const canvas = this.canvasRef?.nativeElement;
     if (canvas) {
       const hoveredIdx = this.hoveredPointIndex();
-      canvas.style.cursor = hoveredIdx !== null ? 'grab' : 'crosshair';
+      canvas.style.cursor = hoveredIdx !== null ? "grab" : "crosshair";
     }
   }
 
@@ -292,8 +318,13 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleClick(e: MouseEvent): void {
-    if (this.testType() !== 'custom') return;
-    
+    if (this.testType() !== "custom") return;
+
+    // ⛔ קליק שבא מיד אחרי גרירה – מתבטל
+    if (this.wasDragging) {
+      return;
+    }
+
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
@@ -306,19 +337,28 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     this.addPointAtPosition(x, y);
   }
+  private getMousePos(e: MouseEvent): { x: number; y: number } {
+    const canvas = this.canvasRef.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  }
 
   private handleRightClick(e: MouseEvent): void {
     e.preventDefault();
-    
-    if (this.testType() !== 'custom') return;
-    
+
+    if (this.testType() !== "custom") return;
+
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
+    const { x, y } = this.getMousePos(e);
     const pointIdx = this.findPointAtPosition(x, y);
     if (pointIdx !== null) {
       this.deleteControlPoint(pointIdx);
@@ -340,38 +380,56 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     let closestDistance = this.hitRadius;
 
     for (let i = 0; i < points.length; i++) {
-      const px = this.padding.left + (points[i].time / duration) * chartWidth;
-      const py = this.padding.top + chartHeight - (points[i].vus / maxVUs) * chartHeight;
-      
+      // Calculate point position more precisely
+      const timeRatio = points[i].time / duration;
+      const vusRatio = points[i].vus / maxVUs;
+
+      const px = this.padding.left + timeRatio * chartWidth;
+      const py = this.padding.top + chartHeight - vusRatio * chartHeight;
+
       const distance = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
-      if (distance <= closestDistance) {
+
+      if (distance < closestDistance) {
         closestDistance = distance;
         closestIdx = i;
       }
     }
-    
+
     return closestIdx;
   }
 
   private getPreviewPoint(x: number, y: number): ControlPoint | null {
-    if (this.testType() !== 'custom') return null;
-    
+    if (this.testType() !== "custom") return null;
+
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return null;
 
     const chartWidth = canvas.width - this.padding.left - this.padding.right;
     const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
-    
-    if (x < this.padding.left || x > this.padding.left + chartWidth ||
-        y < this.padding.top || y > this.padding.top + chartHeight) {
+
+    if (
+      x < this.padding.left ||
+      x > this.padding.left + chartWidth ||
+      y < this.padding.top ||
+      y > this.padding.top + chartHeight
+    ) {
       return null;
     }
 
     const maxVUs = this.maxVUs();
     const duration = this.totalDurationSeconds();
 
-    let newTime = Math.max(0, Math.min(duration, ((x - this.padding.left) / chartWidth) * duration));
-    let newVUs = Math.max(0, Math.min(maxVUs, ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs));
+    let newTime = Math.max(
+      0,
+      Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
+    );
+    let newVUs = Math.max(
+      0,
+      Math.min(
+        maxVUs,
+        ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
+      )
+    );
 
     newTime = Math.round(newTime / 5) * 5;
     newVUs = Math.round(newVUs);
@@ -389,25 +447,38 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const duration = this.totalDurationSeconds();
 
     const points = [...this.controlPoints()];
-    
-    let newTime = Math.max(0, Math.min(duration, ((x - this.padding.left) / chartWidth) * duration));
-    let newVUs = Math.max(0, Math.min(maxVUs, ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs));
+
+    let newTime = Math.max(
+      0,
+      Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
+    );
+    let newVUs = Math.max(
+      0,
+      Math.min(
+        maxVUs,
+        ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
+      )
+    );
 
     newTime = Math.round(newTime / 5) * 5;
     newVUs = Math.round(newVUs);
 
-    if (index > 0 && newTime <= points[index - 1].time) {
-      newTime = points[index - 1].time + 5;
-    }
-    if (index < points.length - 1 && newTime >= points[index + 1].time) {
-      newTime = points[index + 1].time - 5;
-    }
-
+    // Don't allow moving first or last point in time (only VUs)
     if (index === 0) {
       newTime = 0;
     }
     if (index === points.length - 1) {
       newTime = duration;
+    }
+
+    // Ensure monotonic time for middle points
+    if (index > 0 && index < points.length - 1) {
+      if (newTime <= points[index - 1].time) {
+        newTime = points[index - 1].time + 5;
+      }
+      if (newTime >= points[index + 1].time) {
+        newTime = points[index + 1].time - 5;
+      }
     }
 
     points[index] = { time: newTime, vus: newVUs };
@@ -423,15 +494,24 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const maxVUs = this.maxVUs();
     const duration = this.totalDurationSeconds();
 
-    let newTime = Math.max(0, Math.min(duration, ((x - this.padding.left) / chartWidth) * duration));
-    let newVUs = Math.max(0, Math.min(maxVUs, ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs));
+    let newTime = Math.max(
+      0,
+      Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
+    );
+    let newVUs = Math.max(
+      0,
+      Math.min(
+        maxVUs,
+        ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
+      )
+    );
 
     newTime = Math.round(newTime / 5) * 5;
     newVUs = Math.round(newVUs);
 
     const points = [...this.controlPoints()];
-    
-    let insertIdx = points.findIndex(p => p.time > newTime);
+
+    let insertIdx = points.findIndex((p) => p.time > newTime);
     if (insertIdx === -1) insertIdx = points.length;
 
     if (insertIdx > 0 && points[insertIdx - 1].time === newTime) return;
@@ -450,14 +530,14 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     let newPoints: ControlPoint[] = [];
 
-    if (scenario === 'fixed-vus') {
+    if (scenario === "fixed-vus") {
       newPoints = [
         { time: 0, vus: 0 },
         { time: Math.min(5, duration * 0.1), vus: vus },
         { time: duration - Math.min(5, duration * 0.1), vus: vus },
-        { time: duration, vus: 0 }
+        { time: duration, vus: 0 },
       ];
-    } else if (scenario === 'ramping-vus') {
+    } else if (scenario === "ramping-vus") {
       const effectiveRampUp = rampUp || duration * 0.2;
       const effectiveRampDown = rampDown || duration * 0.1;
       const plateauDuration = duration - effectiveRampUp - effectiveRampDown;
@@ -467,54 +547,55 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
           { time: 0, vus: 0 },
           { time: effectiveRampUp, vus: vus },
           { time: effectiveRampUp + plateauDuration, vus: vus },
-          { time: duration, vus: 0 }
+          { time: duration, vus: 0 },
         ];
       } else {
         newPoints = [
           { time: 0, vus: 0 },
           { time: duration / 2, vus: vus },
-          { time: duration, vus: 0 }
+          { time: duration, vus: 0 },
         ];
       }
     } else {
       newPoints = [
         { time: 0, vus: vus },
-        { time: duration, vus: vus }
+        { time: duration, vus: vus },
       ];
     }
 
     this.controlPoints.set(newPoints);
   }
 
-  private convertControlPointsForDurationUnit(newUnit: "seconds" | "minutes"): void {
+  private convertControlPointsForDurationUnit(
+    newUnit: "seconds" | "minutes"
+  ): void {
     const points = this.controlPoints();
     const currentDuration = this.duration();
-    
+
     if (newUnit === "minutes") {
       // Converting from seconds to minutes
       // Current duration in the input is still in the OLD unit
       // So if duration = 300 (seconds), convert points and then set duration to 5 (minutes)
       const newDuration = currentDuration / 60;
-      
-      const convertedPoints = points.map(p => ({
+
+      const convertedPoints = points.map((p) => ({
         time: p.time / 60,
-        vus: p.vus
+        vus: p.vus,
       }));
-      
+
       this.controlPoints.set(convertedPoints);
       this.duration.set(Math.round(newDuration * 10) / 10); // Round to 1 decimal
-      
     } else {
       // Converting from minutes to seconds
       // Current duration in the input is still in the OLD unit
       // So if duration = 5 (minutes), convert points and then set duration to 300 (seconds)
       const newDuration = currentDuration * 60;
-      
-      const convertedPoints = points.map(p => ({
+
+      const convertedPoints = points.map((p) => ({
         time: p.time * 60,
-        vus: p.vus
+        vus: p.vus,
       }));
-      
+
       this.controlPoints.set(convertedPoints);
       this.duration.set(Math.round(newDuration));
     }
@@ -522,19 +603,19 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   private drawGraph(): void {
     if (!this.ctx || !this.canvasRef?.nativeElement) {
-      console.warn('Canvas or context not ready for drawing');
+      console.warn("Canvas or context not ready for drawing");
       return;
     }
 
     const canvas = this.canvasRef.nativeElement;
     const ctx = this.ctx;
     const points = this.controlPoints();
-    
+
     if (points.length === 0) {
-      console.warn('No control points to draw');
+      console.warn("No control points to draw");
       return;
     }
-    
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const chartWidth = canvas.width - this.padding.left - this.padding.right;
@@ -543,7 +624,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const duration = this.totalDurationSeconds();
 
     // Draw background
-    ctx.fillStyle = 'rgba(30, 30, 35, 0.4)';
+    ctx.fillStyle = "rgba(30, 30, 35, 0.4)";
     ctx.fillRect(this.padding.left, this.padding.top, chartWidth, chartHeight);
 
     this.drawGrid(ctx, chartWidth, chartHeight, maxVUs, duration);
@@ -554,39 +635,81 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     this.drawCurve(ctx, chartWidth, chartHeight, points, maxVUs, duration);
     this.drawAxes(ctx, chartWidth, chartHeight, maxVUs, duration);
-    
+
     const previewPt = this.previewPoint();
     if (previewPt && this.hoveredPointIndex() === null) {
-      this.drawPreviewPoint(ctx, previewPt, chartWidth, chartHeight, maxVUs, duration);
+      this.drawPreviewPoint(
+        ctx,
+        previewPt,
+        chartWidth,
+        chartHeight,
+        maxVUs,
+        duration
+      );
     }
 
-    this.drawControlPoints(ctx, chartWidth, chartHeight, points, maxVUs, duration);
+    this.drawControlPoints(
+      ctx,
+      chartWidth,
+      chartHeight,
+      points,
+      maxVUs,
+      duration
+    );
 
     const hoveredIdx = this.hoveredPointIndex();
     if (hoveredIdx !== null) {
-      this.drawTooltip(ctx, points[hoveredIdx], chartWidth, chartHeight, maxVUs, duration);
+      this.drawTooltip(
+        ctx,
+        points[hoveredIdx],
+        chartWidth,
+        chartHeight,
+        maxVUs,
+        duration
+      );
     } else if (previewPt) {
-      this.drawTooltip(ctx, previewPt, chartWidth, chartHeight, maxVUs, duration, true);
+      this.drawTooltip(
+        ctx,
+        previewPt,
+        chartWidth,
+        chartHeight,
+        maxVUs,
+        duration,
+        true
+      );
     }
   }
 
-  private drawPreviewPoint(ctx: CanvasRenderingContext2D, point: ControlPoint, width: number, height: number, maxVUs: number, duration: number): void {
+  private drawPreviewPoint(
+    ctx: CanvasRenderingContext2D,
+    point: ControlPoint,
+    width: number,
+    height: number,
+    maxVUs: number,
+    duration: number
+  ): void {
     const x = this.padding.left + (point.time / duration) * width;
     const y = this.padding.top + height - (point.vus / maxVUs) * height;
 
     ctx.beginPath();
     ctx.arc(x, y, this.pointRadius + 2, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(100, 200, 255, 0.3)';
+    ctx.fillStyle = "rgba(100, 200, 255, 0.3)";
     ctx.fill();
-    ctx.strokeStyle = 'rgba(100, 200, 255, 0.6)';
+    ctx.strokeStyle = "rgba(100, 200, 255, 0.6)";
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
     ctx.stroke();
     ctx.setLineDash([]);
   }
 
-  private drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, maxVUs: number, duration: number): void {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  private drawGrid(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    maxVUs: number,
+    duration: number
+  ): void {
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
     ctx.lineWidth = 1;
 
     for (let i = 0; i <= 5; i++) {
@@ -607,11 +730,22 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private drawK6Phases(ctx: CanvasRenderingContext2D, width: number, height: number, points: ControlPoint[], duration: number): void {
+  private drawK6Phases(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    points: ControlPoint[],
+    duration: number
+  ): void {
     if (points.length < 2) return;
 
-    const phases: { start: number; end: number; type: string; color: string }[] = [];
-    
+    const phases: {
+      start: number;
+      end: number;
+      type: string;
+      color: string;
+    }[] = [];
+
     for (let i = 0; i < points.length - 1; i++) {
       const curr = points[i];
       const next = points[i + 1];
@@ -621,35 +755,42 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       let color: string;
 
       if (Math.abs(vusChange) < 1) {
-        type = 'steady';
-        color = 'rgba(100, 200, 255, 0.1)';
+        type = "steady";
+        color = "rgba(100, 200, 255, 0.1)";
       } else if (vusChange > 0) {
-        type = 'ramp-up';
-        color = 'rgba(255, 200, 100, 0.1)';
+        type = "ramp-up";
+        color = "rgba(255, 200, 100, 0.1)";
       } else {
-        type = 'ramp-down';
-        color = 'rgba(255, 100, 100, 0.1)';
+        type = "ramp-down";
+        color = "rgba(255, 100, 100, 0.1)";
       }
 
       phases.push({ start: curr.time, end: next.time, type, color });
     }
 
-    phases.forEach(phase => {
+    phases.forEach((phase) => {
       const startX = this.padding.left + (phase.start / duration) * width;
       const endX = this.padding.left + (phase.end / duration) * width;
 
       ctx.fillStyle = phase.color;
       ctx.fillRect(startX, this.padding.top, endX - startX, height);
 
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
+      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "center";
       const labelX = (startX + endX) / 2;
       ctx.fillText(phase.type.toUpperCase(), labelX, this.padding.top + 20);
     });
   }
 
-  private drawCurve(ctx: CanvasRenderingContext2D, width: number, height: number, points: ControlPoint[], maxVUs: number, duration: number): void {
+  private drawCurve(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    points: ControlPoint[],
+    maxVUs: number,
+    duration: number
+  ): void {
     if (points.length < 2) return;
 
     ctx.beginPath();
@@ -664,9 +805,14 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     ctx.lineTo(this.padding.left + width, this.padding.top + height);
     ctx.closePath();
 
-    const gradient = ctx.createLinearGradient(0, this.padding.top, 0, this.padding.top + height);
-    gradient.addColorStop(0, 'rgba(100, 200, 255, 0.3)');
-    gradient.addColorStop(1, 'rgba(100, 200, 255, 0.05)');
+    const gradient = ctx.createLinearGradient(
+      0,
+      this.padding.top,
+      0,
+      this.padding.top + height
+    );
+    gradient.addColorStop(0, "rgba(100, 200, 255, 0.3)");
+    gradient.addColorStop(1, "rgba(100, 200, 255, 0.05)");
     ctx.fillStyle = gradient;
     ctx.fill();
 
@@ -682,15 +828,21 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    ctx.strokeStyle = 'rgba(100, 200, 255, 0.9)';
+    ctx.strokeStyle = "rgba(100, 200, 255, 0.9)";
     ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.stroke();
   }
 
-  private drawAxes(ctx: CanvasRenderingContext2D, width: number, height: number, maxVUs: number, duration: number): void {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  private drawAxes(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    maxVUs: number,
+    duration: number
+  ): void {
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
     ctx.lineWidth = 2;
 
     ctx.beginPath();
@@ -703,10 +855,10 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     ctx.lineTo(this.padding.left, this.padding.top + height);
     ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
 
     const vusStep = Math.max(1, Math.ceil(maxVUs / 5));
     for (let i = 0; i <= 5; i++) {
@@ -718,34 +870,46 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     ctx.save();
     ctx.translate(20, this.padding.top + height / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.fillText('Virtual Users (VUs)', 0, 0);
+    ctx.textAlign = "center";
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.fillText("Virtual Users (VUs)", 0, 0);
     ctx.restore();
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = "12px sans-serif";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
 
     const timeSteps = duration > 300 ? 6 : 5;
     for (let i = 0; i <= timeSteps; i++) {
       const time = (i / timeSteps) * duration;
       const x = this.padding.left + (i / timeSteps) * width;
-      const label = this.durationUnit() === 'minutes' 
-        ? `${Math.round(time / 60)}m`
-        : `${Math.round(time)}s`;
+      const label =
+        this.durationUnit() === "minutes"
+          ? `${Math.round(time / 60)}m`
+          : `${Math.round(time)}s`;
       ctx.fillText(label, x, this.padding.top + height + 10);
     }
 
-    ctx.textBaseline = 'bottom';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.fillText('Time', this.padding.left + width / 2, this.canvasRef.nativeElement.height - 10);
+    ctx.textBaseline = "bottom";
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.fillText(
+      "Time",
+      this.padding.left + width / 2,
+      this.canvasRef.nativeElement.height - 10
+    );
   }
 
-  private drawControlPoints(ctx: CanvasRenderingContext2D, width: number, height: number, points: ControlPoint[], maxVUs: number, duration: number): void {
+  private drawControlPoints(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    points: ControlPoint[],
+    maxVUs: number,
+    duration: number
+  ): void {
     const hoveredIdx = this.hoveredPointIndex();
     const draggedIdx = this.draggedPointIndex();
 
@@ -757,57 +921,68 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       const isDragged = draggedIdx === i;
 
       ctx.beginPath();
-      const radius = isHovered || isDragged ? this.pointRadius + 3 : this.pointRadius;
+      const radius =
+        isHovered || isDragged ? this.pointRadius + 3 : this.pointRadius;
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-      
+
       if (isDragged) {
-        ctx.fillStyle = 'rgba(255, 100, 100, 0.9)';
-        ctx.shadowColor = 'rgba(255, 100, 100, 0.6)';
+        ctx.fillStyle = "rgba(255, 100, 100, 0.9)";
+        ctx.shadowColor = "rgba(255, 100, 100, 0.6)";
         ctx.shadowBlur = 12;
       } else if (isHovered) {
-        ctx.fillStyle = 'rgba(255, 200, 100, 0.95)';
-        ctx.shadowColor = 'rgba(255, 200, 100, 0.5)';
+        ctx.fillStyle = "rgba(255, 200, 100, 0.95)";
+        ctx.shadowColor = "rgba(255, 200, 100, 0.5)";
         ctx.shadowBlur = 10;
       } else {
-        ctx.fillStyle = 'rgba(100, 200, 255, 0.9)';
-        ctx.shadowColor = 'rgba(100, 200, 255, 0.3)';
+        ctx.fillStyle = "rgba(100, 200, 255, 0.9)";
+        ctx.shadowColor = "rgba(100, 200, 255, 0.3)";
         ctx.shadowBlur = 6;
       }
-      
+
       ctx.fill();
       ctx.shadowBlur = 0;
-      
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
       if (isHovered || isDragged) {
         ctx.beginPath();
         ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
-        ctx.strokeStyle = isHovered ? 'rgba(255, 200, 100, 0.4)' : 'rgba(255, 100, 100, 0.4)';
+        ctx.strokeStyle = isHovered
+          ? "rgba(255, 200, 100, 0.4)"
+          : "rgba(255, 100, 100, 0.4)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
     });
   }
 
-  private drawTooltip(ctx: CanvasRenderingContext2D, point: ControlPoint, width: number, height: number, maxVUs: number, duration: number, isPreview: boolean = false): void {
+  private drawTooltip(
+    ctx: CanvasRenderingContext2D,
+    point: ControlPoint,
+    width: number,
+    height: number,
+    maxVUs: number,
+    duration: number,
+    isPreview: boolean = false
+  ): void {
     const x = this.padding.left + (point.time / duration) * width;
     const y = this.padding.top + height - (point.vus / maxVUs) * height;
 
     let timeLabel: string;
-    if (this.durationUnit() === 'minutes') {
+    if (this.durationUnit() === "minutes") {
       const minutes = Math.floor(point.time);
       const seconds = Math.round((point.time - minutes) * 60);
       timeLabel = seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
     } else {
       timeLabel = `${Math.round(point.time)}s`;
     }
-    
-    const prefix = isPreview ? 'Click to add: ' : '';
+
+    const prefix = isPreview ? "Click to add: " : "";
     const text = `${prefix}${timeLabel} | ${Math.round(point.vus)} VUs`;
-    
-    ctx.font = '12px sans-serif';
+
+    ctx.font = "12px sans-serif";
     const metrics = ctx.measureText(text);
     const padding = 10;
     const tooltipWidth = metrics.width + padding * 2;
@@ -822,10 +997,14 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     }
     if (tooltipY < this.padding.top) tooltipY = y + 18;
 
-    ctx.fillStyle = isPreview ? 'rgba(40, 40, 50, 0.92)' : 'rgba(30, 30, 35, 0.96)';
-    ctx.strokeStyle = isPreview ? 'rgba(100, 200, 255, 0.5)' : 'rgba(100, 200, 255, 0.7)';
+    ctx.fillStyle = isPreview
+      ? "rgba(40, 40, 50, 0.92)"
+      : "rgba(30, 30, 35, 0.96)";
+    ctx.strokeStyle = isPreview
+      ? "rgba(100, 200, 255, 0.5)"
+      : "rgba(100, 200, 255, 0.7)";
     ctx.lineWidth = 1.5;
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
     ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 8);
@@ -833,11 +1012,17 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = isPreview ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.95)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = isPreview ? '11px sans-serif' : '12px sans-serif';
-    ctx.fillText(text, tooltipX + tooltipWidth / 2, tooltipY + tooltipHeight / 2);
+    ctx.fillStyle = isPreview
+      ? "rgba(255, 255, 255, 0.75)"
+      : "rgba(255, 255, 255, 0.95)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = isPreview ? "11px sans-serif" : "12px sans-serif";
+    ctx.fillText(
+      text,
+      tooltipX + tooltipWidth / 2,
+      tooltipY + tooltipHeight / 2
+    );
   }
 
   // Public methods
@@ -851,8 +1036,11 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     try {
       const urlObj = new URL(url);
-      const isValid = urlObj.protocol === "http:" || urlObj.protocol === "https:";
-      this.targetUrlError.set(isValid ? "" : "URL must start with http:// or https://");
+      const isValid =
+        urlObj.protocol === "http:" || urlObj.protocol === "https:";
+      this.targetUrlError.set(
+        isValid ? "" : "URL must start with http:// or https://"
+      );
       return isValid;
     } catch {
       this.targetUrlError.set("Invalid URL format");
@@ -919,11 +1107,11 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   toggleK6Phases(): void {
-    this.showK6Phases.update(v => !v);
+    this.showK6Phases.update((v) => !v);
   }
 
   deleteControlPoint(index: number): void {
-    if (this.testType() !== 'custom') return;
+    if (this.testType() !== "custom") return;
     if (this.controlPoints().length <= 2) return;
 
     const points = this.controlPoints().filter((_, i) => i !== index);
@@ -946,15 +1134,22 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   removeThreshold(index: number): void {
-    this.thresholds.update((thresholds) => thresholds.filter((_, i) => i !== index));
+    this.thresholds.update((thresholds) =>
+      thresholds.filter((_, i) => i !== index)
+    );
   }
 
   addEnvironmentVariable(): void {
-    this.environmentVariables.update((envVars) => [...envVars, { key: "", value: "" }]);
+    this.environmentVariables.update((envVars) => [
+      ...envVars,
+      { key: "", value: "" },
+    ]);
   }
 
   removeEnvironmentVariable(index: number): void {
-    this.environmentVariables.update((envVars) => envVars.filter((_, i) => i !== index));
+    this.environmentVariables.update((envVars) =>
+      envVars.filter((_, i) => i !== index)
+    );
   }
 
   updateHeaderKey(index: number, value: string): void {
@@ -1020,7 +1215,9 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       rampDownDuration: this.rampDownDuration() || undefined,
       headers: this.headers().filter((h) => h.key && h.value),
       thresholds: this.thresholds().filter((t) => t.metric && t.condition),
-      environmentVariables: this.environmentVariables().filter((e) => e.key && e.value),
+      environmentVariables: this.environmentVariables().filter(
+        (e) => e.key && e.value
+      ),
       controlPoints: this.controlPoints(),
     };
 
@@ -1039,14 +1236,18 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.executionInterval = window.setInterval(() => {
       elapsed += 1;
       const progress = Math.min((elapsed / totalDuration) * 100, 100);
-      
+
       const points = this.controlPoints();
       let currentVUs = 0;
-      
+
       for (let i = 0; i < points.length - 1; i++) {
         if (elapsed >= points[i].time && elapsed <= points[i + 1].time) {
-          const segmentProgress = (elapsed - points[i].time) / (points[i + 1].time - points[i].time);
-          currentVUs = Math.round(points[i].vus + (points[i + 1].vus - points[i].vus) * segmentProgress);
+          const segmentProgress =
+            (elapsed - points[i].time) / (points[i + 1].time - points[i].time);
+          currentVUs = Math.round(
+            points[i].vus +
+              (points[i + 1].vus - points[i].vus) * segmentProgress
+          );
           break;
         }
       }
@@ -1096,7 +1297,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.executionStatus.set({ status: "idle" });
     this.controlPoints.set([
       { time: 0, vus: 0 },
-      { time: 60, vus: 10 }
+      { time: 60, vus: 10 },
     ]);
   }
 
@@ -1108,7 +1309,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
         virtualUsers: this.virtualUsers(),
         duration: this.duration(),
         scenarioType: this.scenarioType(),
-      }
+      },
     });
   }
 
@@ -1116,7 +1317,19 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const testId = this.executionStatus().testId;
     if (testId) {
       console.log("View results for:", testId);
+      this.showResultsIframe.set(true);
     }
+  }
+
+  closeResultsIframe(): void {
+    this.showResultsIframe.set(false);
+  }
+
+  getResultsUrl(): SafeResourceUrl {
+    const testId = this.executionStatus().testId;
+    // TODO: Replace with actual results dashboard URL
+    const url = `https://grafana.example.com/d/load-test?testId=${testId}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
   getElapsedTimeFormatted(): string {
@@ -1135,7 +1348,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   formatControlPointTime(time: number): string {
-    if (this.durationUnit() === 'minutes') {
+    if (this.durationUnit() === "minutes") {
       const minutes = Math.floor(time);
       const seconds = Math.round((time - minutes) * 60);
       return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;

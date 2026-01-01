@@ -421,9 +421,45 @@
       </div>
     </div>
     <button class="view-results-button" type="button" (click)="viewResults()">
-      View Results
+      📊 View Results Dashboard
     </button>
     }
+  </div>
+  }
+
+  <!-- Results Dashboard Iframe Modal -->
+  @if (showResultsIframe()) {
+  <div class="iframe-modal-overlay" (click)="closeResultsIframe()">
+    <div class="iframe-modal-container" (click)="$event.stopPropagation()">
+      <div class="iframe-modal-header">
+        <div class="iframe-modal-title">
+          <span class="modal-icon">📊</span>
+          <h3>Load Test Results Dashboard</h3>
+          <span class="test-id-badge">{{ executionStatus().testId }}</span>
+        </div>
+        <button
+          class="close-iframe-btn"
+          type="button"
+          (click)="closeResultsIframe()"
+        >
+          ✕
+        </button>
+      </div>
+      <div class="iframe-content">
+        <iframe
+          [src]="getResultsUrl()"
+          class="results-iframe"
+          title="Load Test Results"
+          frameborder="0"
+          allowfullscreen
+        >
+        </iframe>
+        <div class="iframe-loading">
+          <div class="loading-spinner"></div>
+          <p>Loading results dashboard...</p>
+        </div>
+      </div>
+    </div>
   </div>
   }
 </div>
