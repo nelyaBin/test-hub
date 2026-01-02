@@ -68,7 +68,7 @@ app-root {
     background: linear-gradient(135deg, #a0a0a0, #888);
 
     &::after {
-      content: 'Select at least one test, preset, or custom to enable running.';
+      content: "Select at least one test, preset, or custom to enable running.";
       position: absolute;
       bottom: 120%;
       left: 50%;
@@ -92,7 +92,6 @@ app-root {
   }
 }
 
-
 // Keyframes לאנימציית tooltip
 @keyframes tooltipFadeIn {
   0% {
@@ -104,8 +103,6 @@ app-root {
     transform: translateX(-50%) translateY(0) scale(1);
   }
 }
-
-
 
 .search-bar {
   display: flex;

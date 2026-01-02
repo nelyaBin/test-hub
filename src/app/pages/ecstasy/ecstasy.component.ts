@@ -12,7 +12,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 
-export type TestType = "load" | "stress" | "spike" | "soak" | "custom";
+export type TestType = "load" | "stress" | "spike" | "soak";
 export type ScenarioType =
   | "fixed-vus"
   | "ramping-vus"
@@ -70,6 +70,9 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   readonly targetUrl = signal<string>("");
   readonly targetUrlError = signal<string>("");
 
+  readonly isCustomMode = signal<boolean>(false);
+
+  readonly editMode = this.isCustomMode;
   readonly testType = signal<TestType>("load");
   readonly virtualUsers = signal<number>(10);
   readonly duration = signal<number>(60);
@@ -140,7 +143,6 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     { value: "stress", label: "Stress Test" },
     { value: "spike", label: "Spike Test" },
     { value: "soak", label: "Soak Test" },
-    { value: "custom", label: "Custom" },
   ];
 
   readonly scenarioTypes: { value: ScenarioType; label: string }[] = [
@@ -166,7 +168,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       }
 
       // Only update from config if NOT in custom mode and not being dragged
-      if (testTypeValue !== "custom" && this.draggedPointIndex() === null) {
+      if (!this.isCustomMode() && this.draggedPointIndex() === null) {
         if (!isFirstRun) {
           this.updateControlPointsFromConfig();
         }
@@ -228,6 +230,10 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.ctx.imageSmoothingQuality = "high";
   }
 
+  toggleEditMode(): void {
+    this.isCustomMode.update((v) => !v);
+  }
+
   private setupCanvasListeners(): void {
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
@@ -251,37 +257,39 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.hoverPosition.set({ x, y });
 
     const draggedIdx = this.draggedPointIndex();
-    const isCustomMode = this.testType() === "custom";
+    const isCustomMode = this.isCustomMode();
 
     if (draggedIdx !== null && isCustomMode) {
       this.wasDragging = true;
       this.updatePointPosition(draggedIdx, x, y);
       canvas.style.cursor = "grabbing";
-    } else {
-      const hoveredIdx = this.findPointAtPosition(x, y);
-      this.hoveredPointIndex.set(hoveredIdx);
+      return;
+    }
 
-      if (hoveredIdx !== null && isCustomMode) {
-        canvas.style.cursor = "grab";
-        this.previewPoint.set(null);
-      } else if (isCustomMode) {
-        canvas.style.cursor = "crosshair";
-        const previewPt = this.getPreviewPoint(x, y);
-        this.previewPoint.set(previewPt);
-      } else {
-        canvas.style.cursor = "default";
-        this.previewPoint.set(null);
-      }
+    const hoveredIdx = this.findPointAtPosition(x, y);
+    this.hoveredPointIndex.set(hoveredIdx);
+
+    if (hoveredIdx !== null && isCustomMode) {
+      canvas.style.cursor = "grab";
+      this.previewPoint.set(null);
+    } else if (isCustomMode) {
+      canvas.style.cursor = "crosshair";
+      this.previewPoint.set(this.getPreviewPoint(x, y));
+    } else {
+      canvas.style.cursor = "default";
+      this.previewPoint.set(null);
     }
   }
 
   private handleMouseDown(e: MouseEvent): void {
-    if (this.testType() !== "custom") return;
+    if (!this.isCustomMode()) return;
 
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
-    const { x, y } = this.getMousePos(e);
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     const pointIdx = this.findPointAtPosition(x, y);
     if (pointIdx !== null) {
@@ -294,20 +302,17 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleMouseUp(): void {
-    this.draggedPointIndex.set(null);
-
-    // 🔑 אם גררנו – חוסמים רק את הקליק הקרוב
-    if (this.wasDragging) {
-      setTimeout(() => {
-        this.wasDragging = false;
-      }, 0);
-    }
-
     const canvas = this.canvasRef?.nativeElement;
     if (canvas) {
       const hoveredIdx = this.hoveredPointIndex();
       canvas.style.cursor = hoveredIdx !== null ? "grab" : "crosshair";
     }
+
+    this.draggedPointIndex.set(null);
+
+    setTimeout(() => {
+      this.wasDragging = false;
+    }, 0);
   }
 
   private handleMouseLeave(): void {
@@ -318,9 +323,8 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleClick(e: MouseEvent): void {
-    if (this.testType() !== "custom") return;
+    if (!this.isCustomMode()) return;
 
-    // ⛔ קליק שבא מיד אחרי גרירה – מתבטל
     if (this.wasDragging) {
       return;
     }
@@ -337,28 +341,19 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     this.addPointAtPosition(x, y);
   }
-  private getMousePos(e: MouseEvent): { x: number; y: number } {
-    const canvas = this.canvasRef.nativeElement;
-    const rect = canvas.getBoundingClientRect();
-
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
-    };
-  }
 
   private handleRightClick(e: MouseEvent): void {
     e.preventDefault();
 
-    if (this.testType() !== "custom") return;
+    if (!this.isCustomMode()) return;
 
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
-    const { x, y } = this.getMousePos(e);
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
     const pointIdx = this.findPointAtPosition(x, y);
     if (pointIdx !== null) {
       this.deleteControlPoint(pointIdx);
@@ -399,7 +394,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   private getPreviewPoint(x: number, y: number): ControlPoint | null {
-    if (this.testType() !== "custom") return null;
+    if (!this.isCustomMode()) return null;
 
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return null;
@@ -1096,9 +1091,6 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
         this.rampUpDuration.set(0);
         this.rampDownDuration.set(0);
         break;
-      case "custom":
-        // Keep current values for custom mode
-        break;
     }
   }
 
@@ -1111,7 +1103,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   deleteControlPoint(index: number): void {
-    if (this.testType() !== "custom") return;
+    if (!this.isCustomMode()) return;
     if (this.controlPoints().length <= 2) return;
 
     const points = this.controlPoints().filter((_, i) => i !== index);

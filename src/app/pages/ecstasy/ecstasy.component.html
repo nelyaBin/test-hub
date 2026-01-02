@@ -48,32 +48,44 @@
           <span class="section-icon">📈</span>
           Load Profile
         </h3>
-        <button
-          class="k6-phases-toggle"
-          (click)="toggleK6Phases()"
-          type="button"
-          [class.active]="showK6Phases()"
-        >
-          <span class="toggle-icon">{{ showK6Phases() ? "👁️" : "👁️‍🗨️" }}</span>
-          <span>{{ showK6Phases() ? "Hide" : "Show" }} k6 Phases</span>
-        </button>
+        <div class="toggle-buttons-group">
+          <button
+            class="k6-phases-toggle"
+            (click)="toggleK6Phases()"
+            type="button"
+            [class.active]="showK6Phases()"
+          >
+            <span class="toggle-icon">{{ showK6Phases() ? "👁️" : "👁️‍🗨️" }}</span>
+            <span>{{ showK6Phases() ? "Hide" : "Show" }} k6 Phases</span>
+          </button>
+          <button
+            class="edit-mode-toggle"
+            (click)="toggleEditMode()"
+            type="button"
+            [class.active]="editMode()"
+            title="Toggle edit mode"
+          >
+            <span class="toggle-icon">✏️</span>
+            <span>{{ editMode() ? "Lock" : "Edit" }} Curve</span>
+          </button>
+        </div>
       </div>
 
       <!-- Interactive Load Profile Graph -->
       <div class="graph-container">
         <canvas #graphCanvas class="load-graph"></canvas>
-        @if (testType() === 'custom') {
+        @if (editMode()) {
         <div class="graph-hint">
           <span class="hint-icon">💡</span>
           <span
             >Click to add points • Drag to move • Right-click to delete</span
           >
         </div>
-        } @if (testType() !== 'custom') {
+        } @if (!editMode()) {
         <div class="graph-hint preset-hint">
           <span class="hint-icon">ℹ️</span>
           <span
-            >Switch to "Custom" test type to manually edit the load curve</span
+            >Click "Edit Curve" button to manually adjust the load profile</span
           >
         </div>
         }
@@ -180,7 +192,7 @@
       }
 
       <!-- Control Points Summary -->
-      @if (testType() === 'custom' && controlPoints().length > 0) {
+      @if (editMode() && controlPoints().length > 0) {
       <div class="control-points-summary">
         <label class="input-label">Control Points</label>
         <div class="points-list">
