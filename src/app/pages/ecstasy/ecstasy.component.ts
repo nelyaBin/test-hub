@@ -153,6 +153,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   constructor(private sanitizer: DomSanitizer) {
     let isFirstRun = true;
+    let userEdited = false; // דגל שמסמן שהמשתמש שינה את הגרף
 
     effect(() => {
       const vus = this.virtualUsers();
@@ -167,8 +168,12 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
         this.previousDurationUnit = currentUnit;
       }
 
-      // Only update from config if NOT in custom mode and not being dragged
-      if (!this.isCustomMode() && this.draggedPointIndex() === null) {
+      // Only update from config if NOT in custom mode, not being dragged, and user didn't edit
+      if (
+        !this.isCustomMode() &&
+        this.draggedPointIndex() === null &&
+        !userEdited
+      ) {
         if (!isFirstRun) {
           this.updateControlPointsFromConfig();
         }
@@ -176,6 +181,33 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    // מאזין לשינויים ב-controlPoints בזמן עריכה
+    effect(() => {
+      if (this.isCustomMode()) {
+        const points = this.controlPoints();
+        if (points.length > 0) {
+          userEdited = true; // אם המשתמש זז נקודה או מוסיף/מוחק נקודה, זה מסמן שהגרף שונה
+        }
+      }
+    });
+    effect(() => {
+      if (this.isCustomMode()) {
+        const type = this.testType();
+        const points = this.controlPoints();
+        this.controlPointsByTestType[type] = [...points]; // שמירת הגרף רק עבור סוג הנוכחי
+      }
+    });
+
+    effect(() => {
+      const type = this.testType();
+      const isCustom = this.isCustomMode();
+
+      // אם אנחנו לא במצב עריכה, נטען את הגרף של סוג הבדיקה הנוכחי
+      if (!isCustom) {
+        const points = this.controlPointsByTestType[type] || [];
+        this.controlPoints.set([...points]);
+      }
+    });
     effect(() => {
       this.controlPoints();
       this.hoveredPointIndex();
@@ -280,6 +312,24 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       this.previewPoint.set(null);
     }
   }
+  private controlPointsByTestType: Record<TestType, ControlPoint[]> = {
+    load: [
+      { time: 0, vus: 0 },
+      { time: 60, vus: 10 },
+    ],
+    stress: [
+      { time: 0, vus: 0 },
+      { time: 60, vus: 10 },
+    ],
+    spike: [
+      { time: 0, vus: 0 },
+      { time: 60, vus: 10 },
+    ],
+    soak: [
+      { time: 0, vus: 0 },
+      { time: 60, vus: 10 },
+    ],
+  };
 
   private handleMouseDown(e: MouseEvent): void {
     if (!this.isCustomMode()) return;
