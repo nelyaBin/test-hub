@@ -134,14 +134,18 @@
               [value]="duration()"
               (input)="duration.set(+$any($event.target).value)"
             />
+            @if (canShowHoursOption()) {
             <select
               class="config-select duration-unit"
               [value]="durationUnit()"
               (change)="durationUnit.set($any($event.target).value)"
             >
-              <option value="seconds">Seconds</option>
               <option value="minutes">Minutes</option>
+              <option value="hours">Hours</option>
             </select>
+            } @else {
+            <span class="duration-unit-label">Minutes</span>
+            }
           </div>
         </div>
       </div>
@@ -169,21 +173,23 @@
       @if (scenarioType() === 'ramping-vus') {
       <div class="ramp-params-grid">
         <div class="input-group">
-          <label class="input-label">Ramp-up Duration (seconds)</label>
+          <label class="input-label">Ramp-up Duration (minutes)</label>
           <input
             type="number"
             class="config-input"
             min="0"
+            step="0.1"
             [value]="rampUpDuration()"
             (input)="rampUpDuration.set(+$any($event.target).value)"
           />
         </div>
         <div class="input-group">
-          <label class="input-label">Ramp-down Duration (seconds)</label>
+          <label class="input-label">Ramp-down Duration (minutes)</label>
           <input
             type="number"
             class="config-input"
             min="0"
+            step="0.1"
             [value]="rampDownDuration()"
             (input)="rampDownDuration.set(+$any($event.target).value)"
           />

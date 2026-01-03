@@ -17,10 +17,23 @@ export type ScenarioType =
   | "fixed-vus"
   | "ramping-vus"
   | "constant-arrival-rate";
+export type DurationUnit = "minutes" | "hours";
 
 export interface ControlPoint {
   time: number;
   vus: number;
+}
+
+export interface TestTypeState {
+  virtualUsers: number;
+  duration: number;
+  durationUnit: DurationUnit;
+  scenarioType: ScenarioType;
+  rampUpDuration: number;
+  rampDownDuration: number;
+  controlPoints: ControlPoint[];
+  isCustomMode: boolean;
+  hasBeenEdited: boolean; // דגל שמסמן אם הגרף אי פעם נערך ידנית
 }
 
 export interface LoadTestConfiguration {
@@ -29,7 +42,7 @@ export interface LoadTestConfiguration {
   testType: TestType;
   virtualUsers: number;
   duration: number;
-  durationUnit: "seconds" | "minutes";
+  durationUnit: DurationUnit;
   scenarioType: ScenarioType;
   rampUpDuration?: number;
   rampDownDuration?: number;
@@ -71,28 +84,26 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   readonly targetUrlError = signal<string>("");
 
   readonly isCustomMode = signal<boolean>(false);
-
   readonly editMode = this.isCustomMode;
   readonly testType = signal<TestType>("load");
   readonly virtualUsers = signal<number>(10);
-  readonly duration = signal<number>(60);
-  readonly durationUnit = signal<"seconds" | "minutes">("seconds");
+  readonly duration = signal<number>(5);
+  readonly durationUnit = signal<DurationUnit>("minutes");
   readonly scenarioType = signal<ScenarioType>("fixed-vus");
   readonly rampUpDuration = signal<number>(0);
   readonly rampDownDuration = signal<number>(0);
 
   readonly controlPoints = signal<ControlPoint[]>([
     { time: 0, vus: 0 },
-    { time: 60, vus: 10 },
+    { time: 5, vus: 10 },
   ]);
   readonly showK6Phases = signal<boolean>(false);
   readonly draggedPointIndex = signal<number | null>(null);
   readonly hoveredPointIndex = signal<number | null>(null);
   readonly hoverPosition = signal<{ x: number; y: number } | null>(null);
   readonly previewPoint = signal<ControlPoint | null>(null);
-  private previousDurationUnit: "seconds" | "minutes" = "seconds";
+
   private wasDragging = false;
-  private mouseDownTime = 0;
 
   readonly showAdvancedOptions = signal<boolean>(false);
   readonly headers = signal<{ key: string; value: string }[]>([
@@ -134,8 +145,10 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     return Math.max(this.virtualUsers(), ...points.map((p) => p.vus), 1);
   });
 
-  readonly totalDurationSeconds = computed(() => {
-    return this.duration() * (this.durationUnit() === "minutes" ? 60 : 1);
+  readonly totalDurationInMinutes = computed(() => {
+    const duration = this.duration();
+    const unit = this.durationUnit();
+    return unit === "hours" ? duration * 60 : duration;
   });
 
   readonly testTypes: { value: TestType; label: string }[] = [
@@ -151,63 +164,108 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     { value: "constant-arrival-rate", label: "Constant Arrival Rate" },
   ];
 
+  // מצב נפרד לכל test type
+  private testTypeStates: Record<TestType, TestTypeState> = {
+    load: {
+      virtualUsers: 50,
+      duration: 5,
+      durationUnit: "minutes",
+      scenarioType: "ramping-vus",
+      rampUpDuration: 1,
+      rampDownDuration: 0.5,
+      controlPoints: [
+        { time: 0, vus: 0 },
+        { time: 5, vus: 50 },
+      ],
+      isCustomMode: false,
+      hasBeenEdited: false,
+    },
+    stress: {
+      virtualUsers: 200,
+      duration: 10,
+      durationUnit: "minutes",
+      scenarioType: "ramping-vus",
+      rampUpDuration: 3,
+      rampDownDuration: 1,
+      controlPoints: [
+        { time: 0, vus: 0 },
+        { time: 10, vus: 200 },
+      ],
+      isCustomMode: false,
+      hasBeenEdited: false,
+    },
+    spike: {
+      virtualUsers: 100,
+      duration: 1,
+      durationUnit: "minutes",
+      scenarioType: "ramping-vus",
+      rampUpDuration: 0.08,
+      rampDownDuration: 0.08,
+      controlPoints: [
+        { time: 0, vus: 0 },
+        { time: 1, vus: 100 },
+      ],
+      isCustomMode: false,
+      hasBeenEdited: false,
+    },
+    soak: {
+      virtualUsers: 20,
+      duration: 1,
+      durationUnit: "hours",
+      scenarioType: "fixed-vus",
+      rampUpDuration: 0,
+      rampDownDuration: 0,
+      controlPoints: [
+        { time: 0, vus: 0 },
+        { time: 60, vus: 20 },
+      ],
+      isCustomMode: false,
+      hasBeenEdited: false,
+    },
+  };
+
   constructor(private sanitizer: DomSanitizer) {
-    let isFirstRun = true;
-    let userEdited = false; // דגל שמסמן שהמשתמש שינה את הגרף
-
-    effect(() => {
-      const vus = this.virtualUsers();
-      const duration = this.totalDurationSeconds();
-      const scenario = this.scenarioType();
-      const testTypeValue = this.testType();
-      const currentUnit = this.durationUnit();
-
-      // Check if duration unit changed - if so, convert control points
-      if (currentUnit !== this.previousDurationUnit) {
-        this.convertControlPointsForDurationUnit(currentUnit);
-        this.previousDurationUnit = currentUnit;
-      }
-
-      // Only update from config if NOT in custom mode, not being dragged, and user didn't edit
-      if (
-        !this.isCustomMode() &&
-        this.draggedPointIndex() === null &&
-        !userEdited
-      ) {
-        if (!isFirstRun) {
-          this.updateControlPointsFromConfig();
-        }
-        isFirstRun = false;
-      }
-    });
-
-    // מאזין לשינויים ב-controlPoints בזמן עריכה
-    effect(() => {
-      if (this.isCustomMode()) {
-        const points = this.controlPoints();
-        if (points.length > 0) {
-          userEdited = true; // אם המשתמש זז נקודה או מוסיף/מוחק נקודה, זה מסמן שהגרף שונה
-        }
-      }
-    });
-    effect(() => {
-      if (this.isCustomMode()) {
-        const type = this.testType();
-        const points = this.controlPoints();
-        this.controlPointsByTestType[type] = [...points]; // שמירת הגרף רק עבור סוג הנוכחי
-      }
-    });
-
+    // Effect לשינוי test type - טעינת מצב שמור
     effect(() => {
       const type = this.testType();
-      const isCustom = this.isCustomMode();
+      this.loadTestTypeState(type);
+    });
 
-      // אם אנחנו לא במצב עריכה, נטען את הגרף של סוג הבדיקה הנוכחי
-      if (!isCustom) {
-        const points = this.controlPointsByTestType[type] || [];
-        this.controlPoints.set([...points]);
+    // Effect לשמירת שינויים בזמן אמת
+    effect(() => {
+      const type = this.testType();
+      const state = this.testTypeStates[type];
+
+      state.virtualUsers = this.virtualUsers();
+      state.duration = this.duration();
+      state.durationUnit = this.durationUnit();
+      state.scenarioType = this.scenarioType();
+      state.rampUpDuration = this.rampUpDuration();
+      state.rampDownDuration = this.rampDownDuration();
+      state.controlPoints = [...this.controlPoints()];
+      state.isCustomMode = this.isCustomMode();
+    });
+
+    // Effect לעדכון גרף - רק אם מעולם לא היה במצב עריכה
+    effect(() => {
+      const vus = this.virtualUsers();
+      const duration = this.totalDurationInMinutes();
+      const scenario = this.scenarioType();
+      const isCustom = this.isCustomMode();
+      const type = this.testType();
+      const state = this.testTypeStates[type];
+
+      // עדכן גרף רק אם הגרף מעולם לא נערך ידנית
+      if (
+        !isCustom &&
+        this.draggedPointIndex() === null &&
+        !state.hasBeenEdited
+      ) {
+        this.updateControlPointsFromConfig();
       }
     });
+
+    // Effect לציור הגרף
     effect(() => {
       this.controlPoints();
       this.hoveredPointIndex();
@@ -220,15 +278,26 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
       this.initializeCanvas();
       this.setupCanvasListeners();
-      // Force initial draw after everything is set up
       setTimeout(() => {
         this.drawGraph();
       }, 100);
     }, 0);
+  }
+
+  private loadTestTypeState(type: TestType): void {
+    const state = this.testTypeStates[type];
+
+    this.virtualUsers.set(state.virtualUsers);
+    this.duration.set(state.duration);
+    this.durationUnit.set(state.durationUnit);
+    this.scenarioType.set(state.scenarioType);
+    this.rampUpDuration.set(state.rampUpDuration);
+    this.rampDownDuration.set(state.rampDownDuration);
+    this.controlPoints.set([...state.controlPoints]);
+    this.isCustomMode.set(state.isCustomMode);
   }
 
   private initializeCanvas(): void {
@@ -244,20 +313,16 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     const dpr = window.devicePixelRatio || 1;
 
-    // גודל ויזואלי (CSS)
     canvas.style.width = `${cssWidth}px`;
     canvas.style.height = `${cssHeight}px`;
 
-    // גודל פנימי אמיתי
     canvas.width = Math.round(cssWidth * dpr);
     canvas.height = Math.round(cssHeight * dpr);
 
     this.ctx = canvas.getContext("2d");
     if (!this.ctx) return;
 
-    // סקלת קואורדינטות
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.imageSmoothingQuality = "high";
   }
@@ -312,24 +377,6 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       this.previewPoint.set(null);
     }
   }
-  private controlPointsByTestType: Record<TestType, ControlPoint[]> = {
-    load: [
-      { time: 0, vus: 0 },
-      { time: 60, vus: 10 },
-    ],
-    stress: [
-      { time: 0, vus: 0 },
-      { time: 60, vus: 10 },
-    ],
-    spike: [
-      { time: 0, vus: 0 },
-      { time: 60, vus: 10 },
-    ],
-    soak: [
-      { time: 0, vus: 0 },
-      { time: 60, vus: 10 },
-    ],
-  };
 
   private handleMouseDown(e: MouseEvent): void {
     if (!this.isCustomMode()) return;
@@ -345,7 +392,6 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     if (pointIdx !== null) {
       this.draggedPointIndex.set(pointIdx);
       this.wasDragging = false;
-      this.mouseDownTime = Date.now();
       canvas.style.cursor = "grabbing";
       this.previewPoint.set(null);
     }
@@ -418,14 +464,12 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const chartWidth = canvas.width - this.padding.left - this.padding.right;
     const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
     const maxVUs = this.maxVUs();
-    const duration = this.totalDurationSeconds();
+    const duration = this.totalDurationInMinutes();
 
-    // Check from closest to farthest
     let closestIdx: number | null = null;
     let closestDistance = this.hitRadius;
 
     for (let i = 0; i < points.length; i++) {
-      // Calculate point position more precisely
       const timeRatio = points[i].time / duration;
       const vusRatio = points[i].vus / maxVUs;
 
@@ -462,7 +506,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     }
 
     const maxVUs = this.maxVUs();
-    const duration = this.totalDurationSeconds();
+    const duration = this.totalDurationInMinutes();
 
     let newTime = Math.max(
       0,
@@ -476,7 +520,9 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       )
     );
 
-    newTime = Math.round(newTime / 5) * 5;
+    // Round to reasonable intervals
+    const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
+    newTime = Math.round(newTime / timeStep) * timeStep;
     newVUs = Math.round(newVUs);
 
     return { time: newTime, vus: newVUs };
@@ -489,8 +535,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const chartWidth = canvas.width - this.padding.left - this.padding.right;
     const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
     const maxVUs = this.maxVUs();
-    const duration = this.totalDurationSeconds();
-
+    const duration = this.totalDurationInMinutes();
     const points = [...this.controlPoints()];
 
     let newTime = Math.max(
@@ -505,81 +550,92 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       )
     );
 
-    newTime = Math.round(newTime / 5) * 5;
+    const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
+    newTime = Math.round(newTime / timeStep) * timeStep;
     newVUs = Math.round(newVUs);
 
-    // Don't allow moving first or last point in time (only VUs)
-    if (index === 0) {
-      newTime = 0;
-    }
-    if (index === points.length - 1) {
-      newTime = duration;
-    }
-
-    // Ensure monotonic time for middle points
+    if (index === 0) newTime = 0;
+    if (index === points.length - 1) newTime = duration;
     if (index > 0 && index < points.length - 1) {
-      if (newTime <= points[index - 1].time) {
-        newTime = points[index - 1].time + 5;
-      }
-      if (newTime >= points[index + 1].time) {
-        newTime = points[index + 1].time - 5;
-      }
+      const minGap = timeStep;
+      if (newTime <= points[index - 1].time)
+        newTime = points[index - 1].time + minGap;
+      if (newTime >= points[index + 1].time)
+        newTime = points[index + 1].time - minGap;
     }
 
     points[index] = { time: newTime, vus: newVUs };
     this.controlPoints.set(points);
+
+    // סימון שהגרף נערך
+    const type = this.testType();
+    this.testTypeStates[type].hasBeenEdited = true;
   }
 
   private addPointAtPosition(x: number, y: number): void {
+    if (!this.isCustomMode()) return;
+
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
     const chartWidth = canvas.width - this.padding.left - this.padding.right;
     const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
     const maxVUs = this.maxVUs();
-    const duration = this.totalDurationSeconds();
+    const duration = this.totalDurationInMinutes();
 
-    let newTime = Math.max(
-      0,
-      Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
-    );
-    let newVUs = Math.max(
-      0,
-      Math.min(
-        maxVUs,
-        ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
+    const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
+
+    let newTime =
+      Math.round(
+        Math.max(
+          0,
+          Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
+        ) / timeStep
+      ) * timeStep;
+
+    let newVUs = Math.round(
+      Math.max(
+        0,
+        Math.min(
+          maxVUs,
+          ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
+        )
       )
     );
 
-    newTime = Math.round(newTime / 5) * 5;
-    newVUs = Math.round(newVUs);
-
     const points = [...this.controlPoints()];
-
     let insertIdx = points.findIndex((p) => p.time > newTime);
     if (insertIdx === -1) insertIdx = points.length;
 
-    if (insertIdx > 0 && points[insertIdx - 1].time === newTime) return;
-    if (insertIdx < points.length && points[insertIdx].time === newTime) return;
+    if (
+      (insertIdx > 0 && points[insertIdx - 1].time === newTime) ||
+      (insertIdx < points.length && points[insertIdx].time === newTime)
+    )
+      return;
 
     points.splice(insertIdx, 0, { time: newTime, vus: newVUs });
     this.controlPoints.set(points);
+
+    // סימון שהגרף נערך
+    const type = this.testType();
+    this.testTypeStates[type].hasBeenEdited = true;
   }
 
   private updateControlPointsFromConfig(): void {
     const scenario = this.scenarioType();
     const vus = this.virtualUsers();
-    const duration = this.totalDurationSeconds();
+    const duration = this.totalDurationInMinutes();
     const rampUp = this.rampUpDuration();
     const rampDown = this.rampDownDuration();
 
     let newPoints: ControlPoint[] = [];
 
     if (scenario === "fixed-vus") {
+      const rampTime = Math.min(duration * 0.1, 1);
       newPoints = [
         { time: 0, vus: 0 },
-        { time: Math.min(5, duration * 0.1), vus: vus },
-        { time: duration - Math.min(5, duration * 0.1), vus: vus },
+        { time: rampTime, vus: vus },
+        { time: duration - rampTime, vus: vus },
         { time: duration, vus: 0 },
       ];
     } else if (scenario === "ramping-vus") {
@@ -611,44 +667,8 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.controlPoints.set(newPoints);
   }
 
-  private convertControlPointsForDurationUnit(
-    newUnit: "seconds" | "minutes"
-  ): void {
-    const points = this.controlPoints();
-    const currentDuration = this.duration();
-
-    if (newUnit === "minutes") {
-      // Converting from seconds to minutes
-      // Current duration in the input is still in the OLD unit
-      // So if duration = 300 (seconds), convert points and then set duration to 5 (minutes)
-      const newDuration = currentDuration / 60;
-
-      const convertedPoints = points.map((p) => ({
-        time: p.time / 60,
-        vus: p.vus,
-      }));
-
-      this.controlPoints.set(convertedPoints);
-      this.duration.set(Math.round(newDuration * 10) / 10); // Round to 1 decimal
-    } else {
-      // Converting from minutes to seconds
-      // Current duration in the input is still in the OLD unit
-      // So if duration = 5 (minutes), convert points and then set duration to 300 (seconds)
-      const newDuration = currentDuration * 60;
-
-      const convertedPoints = points.map((p) => ({
-        time: p.time * 60,
-        vus: p.vus,
-      }));
-
-      this.controlPoints.set(convertedPoints);
-      this.duration.set(Math.round(newDuration));
-    }
-  }
-
   private drawGraph(): void {
     if (!this.ctx || !this.canvasRef?.nativeElement) {
-      console.warn("Canvas or context not ready for drawing");
       return;
     }
 
@@ -657,7 +677,6 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const points = this.controlPoints();
 
     if (points.length === 0) {
-      console.warn("No control points to draw");
       return;
     }
 
@@ -666,9 +685,8 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const chartWidth = canvas.width - this.padding.left - this.padding.right;
     const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
     const maxVUs = this.maxVUs();
-    const duration = this.totalDurationSeconds();
+    const duration = this.totalDurationInMinutes();
 
-    // Draw background
     ctx.fillStyle = "rgba(30, 30, 35, 0.4)";
     ctx.fillRect(this.padding.left, this.padding.top, chartWidth, chartHeight);
 
@@ -765,7 +783,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       ctx.stroke();
     }
 
-    const timeSteps = duration > 300 ? 6 : 5;
+    const timeSteps = duration > 60 ? 8 : 6;
     for (let i = 0; i <= timeSteps; i++) {
       const x = this.padding.left + (i / timeSteps) * width;
       ctx.beginPath();
@@ -926,14 +944,11 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     ctx.font = "12px sans-serif";
     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
 
-    const timeSteps = duration > 300 ? 6 : 5;
+    const timeSteps = duration > 60 ? 8 : 6;
     for (let i = 0; i <= timeSteps; i++) {
       const time = (i / timeSteps) * duration;
       const x = this.padding.left + (i / timeSteps) * width;
-      const label =
-        this.durationUnit() === "minutes"
-          ? `${Math.round(time / 60)}m`
-          : `${Math.round(time)}s`;
+      const label = this.formatTimeLabel(time);
       ctx.fillText(label, x, this.padding.top + height + 10);
     }
 
@@ -1015,15 +1030,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const x = this.padding.left + (point.time / duration) * width;
     const y = this.padding.top + height - (point.vus / maxVUs) * height;
 
-    let timeLabel: string;
-    if (this.durationUnit() === "minutes") {
-      const minutes = Math.floor(point.time);
-      const seconds = Math.round((point.time - minutes) * 60);
-      timeLabel = seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-    } else {
-      timeLabel = `${Math.round(point.time)}s`;
-    }
-
+    const timeLabel = this.formatTimeLabel(point.time);
     const prefix = isPreview ? "Click to add: " : "";
     const text = `${prefix}${timeLabel} | ${Math.round(point.vus)} VUs`;
 
@@ -1070,8 +1077,23 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     );
   }
 
-  // Public methods
+  // Helper methods
+private formatTimeLabel(timeInMinutes: number): string {
+  if (this.durationUnit() === "hours") {
+    const hours = Math.floor(timeInMinutes / 60);
+    const minutes = Math.round(timeInMinutes % 60);
+    return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+  }
 
+  return `${Math.round(timeInMinutes)}m`;
+}
+
+
+  formatControlPointTime(time: number): string {
+    return this.formatTimeLabel(time);
+  }
+
+  // Public methods
   isTargetUrlValid(): boolean {
     const url = this.targetUrl().trim();
     if (!url) {
@@ -1104,44 +1126,10 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   onTestTypeChange(testType: TestType): void {
     this.testType.set(testType);
-    this.applyTestTypePreset(testType);
   }
 
-  applyTestTypePreset(testType: TestType): void {
-    switch (testType) {
-      case "load":
-        this.virtualUsers.set(50);
-        this.duration.set(300);
-        this.durationUnit.set("seconds");
-        this.scenarioType.set("ramping-vus");
-        this.rampUpDuration.set(60);
-        this.rampDownDuration.set(30);
-        break;
-      case "stress":
-        this.virtualUsers.set(200);
-        this.duration.set(600);
-        this.durationUnit.set("seconds");
-        this.scenarioType.set("ramping-vus");
-        this.rampUpDuration.set(180);
-        this.rampDownDuration.set(60);
-        break;
-      case "spike":
-        this.virtualUsers.set(100);
-        this.duration.set(60);
-        this.durationUnit.set("seconds");
-        this.scenarioType.set("ramping-vus");
-        this.rampUpDuration.set(5);
-        this.rampDownDuration.set(5);
-        break;
-      case "soak":
-        this.virtualUsers.set(20);
-        this.duration.set(60);
-        this.durationUnit.set("minutes");
-        this.scenarioType.set("fixed-vus");
-        this.rampUpDuration.set(0);
-        this.rampDownDuration.set(0);
-        break;
-    }
+  canShowHoursOption(): boolean {
+    return this.testType() === "soak";
   }
 
   toggleAdvancedOptions(): void {
@@ -1158,6 +1146,10 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     const points = this.controlPoints().filter((_, i) => i !== index);
     this.controlPoints.set(points);
+
+    // סימון שהגרף נערך
+    const type = this.testType();
+    this.testTypeStates[type].hasBeenEdited = true;
   }
 
   addHeader(): void {
@@ -1242,6 +1234,38 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  private convertDurationValue(
+    value: number,
+    from: DurationUnit,
+    to: DurationUnit
+  ): number {
+    if (from === to) return value;
+
+    if (from === "minutes" && to === "hours") {
+      return value / 60;
+    }
+
+    if (from === "hours" && to === "minutes") {
+      return value * 60;
+    }
+
+    return value;
+  }
+
+  onDurationUnitChange(newUnit: DurationUnit): void {
+    const prevUnit = this.durationUnit();
+    if (prevUnit === newUnit) return;
+
+    const newDuration = this.convertDurationValue(
+      this.duration(),
+      prevUnit,
+      newUnit
+    );
+
+    this.durationUnit.set(newUnit);
+    this.duration.set(Math.max(0.1, +newDuration.toFixed(2)));
+  }
+
   runLoadTest(): void {
     if (!this.canRunTest()) return;
 
@@ -1273,7 +1297,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     });
 
     let elapsed = 0;
-    const totalDuration = this.totalDurationSeconds();
+    const totalDuration = this.totalDurationInMinutes();
 
     this.executionInterval = window.setInterval(() => {
       elapsed += 1;
@@ -1326,21 +1350,72 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.targetUrl.set("");
     this.targetUrlError.set("");
     this.testType.set("load");
-    this.virtualUsers.set(10);
-    this.duration.set(60);
-    this.durationUnit.set("seconds");
-    this.previousDurationUnit = "seconds";
-    this.scenarioType.set("fixed-vus");
-    this.rampUpDuration.set(0);
-    this.rampDownDuration.set(0);
     this.headers.set([{ key: "", value: "" }]);
     this.thresholds.set([{ metric: "", condition: "" }]);
     this.environmentVariables.set([{ key: "", value: "" }]);
     this.executionStatus.set({ status: "idle" });
-    this.controlPoints.set([
-      { time: 0, vus: 0 },
-      { time: 60, vus: 10 },
-    ]);
+
+    // Reset all test type states to defaults
+    this.testTypeStates = {
+      load: {
+        virtualUsers: 50,
+        duration: 5,
+        durationUnit: "minutes",
+        scenarioType: "ramping-vus",
+        rampUpDuration: 1,
+        rampDownDuration: 0.5,
+        controlPoints: [
+          { time: 0, vus: 0 },
+          { time: 5, vus: 50 },
+        ],
+        isCustomMode: false,
+        hasBeenEdited: false,
+      },
+      stress: {
+        virtualUsers: 200,
+        duration: 10,
+        durationUnit: "minutes",
+        scenarioType: "ramping-vus",
+        rampUpDuration: 3,
+        rampDownDuration: 1,
+        controlPoints: [
+          { time: 0, vus: 0 },
+          { time: 10, vus: 200 },
+        ],
+        isCustomMode: false,
+        hasBeenEdited: false,
+      },
+      spike: {
+        virtualUsers: 100,
+        duration: 1,
+        durationUnit: "minutes",
+        scenarioType: "ramping-vus",
+        rampUpDuration: 0.08,
+        rampDownDuration: 0.08,
+        controlPoints: [
+          { time: 0, vus: 0 },
+          { time: 1, vus: 100 },
+        ],
+        isCustomMode: false,
+        hasBeenEdited: false,
+      },
+      soak: {
+        virtualUsers: 20,
+        duration: 1,
+        durationUnit: "hours",
+        scenarioType: "fixed-vus",
+        rampUpDuration: 0,
+        rampDownDuration: 0,
+        controlPoints: [
+          { time: 0, vus: 0 },
+          { time: 60, vus: 20 },
+        ],
+        isCustomMode: false,
+        hasBeenEdited: false,
+      },
+    };
+
+    this.loadTestTypeState("load");
   }
 
   saveAsPreset(): void {
@@ -1350,6 +1425,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       config: {
         virtualUsers: this.virtualUsers(),
         duration: this.duration(),
+        durationUnit: this.durationUnit(),
         scenarioType: this.scenarioType(),
       },
     });
@@ -1369,34 +1445,27 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   getResultsUrl(): SafeResourceUrl {
     const testId = this.executionStatus().testId;
-    // TODO: Replace with actual results dashboard URL
     const url = `https://grafana.example.com/d/load-test?testId=${testId}`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
   getElapsedTimeFormatted(): string {
     const elapsed = this.executionStatus().elapsedTime || 0;
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    const hours = Math.floor(elapsed / 60);
+    const minutes = elapsed % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   }
 
-  getDurationInSeconds(): number {
-    return this.totalDurationSeconds();
+  getDurationInMinutes(): number {
+    return this.totalDurationInMinutes();
   }
 
   getProgressPercentage(): number {
     return Math.round(this.executionStatus().progress || 0);
-  }
-
-  formatControlPointTime(time: number): string {
-    if (this.durationUnit() === "minutes") {
-      const minutes = Math.floor(time);
-      const seconds = Math.round((time - minutes) * 60);
-      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-    } else {
-      return `${Math.round(time)}s`;
-    }
   }
 
   ngOnDestroy(): void {
