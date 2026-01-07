@@ -138,7 +138,7 @@
             <select
               class="config-select duration-unit"
               [value]="durationUnit()"
-              (change)="durationUnit.set($any($event.target).value)"
+              (change)="onDurationUnitChange($any($event.target).value)"
             >
               <option value="minutes">Minutes</option>
               <option value="hours">Hours</option>

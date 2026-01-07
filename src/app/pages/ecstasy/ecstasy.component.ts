@@ -102,7 +102,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   readonly hoveredPointIndex = signal<number | null>(null);
   readonly hoverPosition = signal<{ x: number; y: number } | null>(null);
   readonly previewPoint = signal<ControlPoint | null>(null);
-
+  
   private wasDragging = false;
 
   readonly showAdvancedOptions = signal<boolean>(false);
@@ -216,8 +216,11 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       rampUpDuration: 0,
       rampDownDuration: 0,
       controlPoints: [
+        // הנקודות צריכות להיות בדקות כי totalDurationInMinutes מחזיר 60
         { time: 0, vus: 0 },
-        { time: 60, vus: 20 },
+        { time: 6, vus: 20 },    // 10% של 60 דקות = 6 דקות
+        { time: 54, vus: 20 },   // 90% של 60 דקות = 54 דקות
+        { time: 60, vus: 0 },    // 100% של 60 דקות = 60 דקות
       ],
       isCustomMode: false,
       hasBeenEdited: false,
@@ -235,7 +238,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       const type = this.testType();
       const state = this.testTypeStates[type];
-
+      
       state.virtualUsers = this.virtualUsers();
       state.duration = this.duration();
       state.durationUnit = this.durationUnit();
@@ -256,11 +259,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       const state = this.testTypeStates[type];
 
       // עדכן גרף רק אם הגרף מעולם לא נערך ידנית
-      if (
-        !isCustom &&
-        this.draggedPointIndex() === null &&
-        !state.hasBeenEdited
-      ) {
+      if (!isCustom && this.draggedPointIndex() === null && !state.hasBeenEdited) {
         this.updateControlPointsFromConfig();
       }
     });
@@ -289,7 +288,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   private loadTestTypeState(type: TestType): void {
     const state = this.testTypeStates[type];
-
+    
     this.virtualUsers.set(state.virtualUsers);
     this.duration.set(state.duration);
     this.durationUnit.set(state.durationUnit);
@@ -566,7 +565,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     points[index] = { time: newTime, vus: newVUs };
     this.controlPoints.set(points);
-
+    
     // סימון שהגרף נערך
     const type = this.testType();
     this.testTypeStates[type].hasBeenEdited = true;
@@ -585,14 +584,13 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
 
-    let newTime =
-      Math.round(
-        Math.max(
-          0,
-          Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
-        ) / timeStep
-      ) * timeStep;
-
+    let newTime = Math.round(
+      Math.max(
+        0,
+        Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
+      ) / timeStep
+    ) * timeStep;
+    
     let newVUs = Math.round(
       Math.max(
         0,
@@ -615,7 +613,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     points.splice(insertIdx, 0, { time: newTime, vus: newVUs });
     this.controlPoints.set(points);
-
+    
     // סימון שהגרף נערך
     const type = this.testType();
     this.testTypeStates[type].hasBeenEdited = true;
@@ -1078,16 +1076,19 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   // Helper methods
-private formatTimeLabel(timeInMinutes: number): string {
-  if (this.durationUnit() === "hours") {
-    const hours = Math.floor(timeInMinutes / 60);
-    const minutes = Math.round(timeInMinutes % 60);
-    return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
+  private formatTimeLabel(timeInMinutes: number): string {
+    const unit = this.durationUnit();
+    
+    if (unit === "hours") {
+      const hours = Math.floor(timeInMinutes / 60);
+      const minutes = Math.round(timeInMinutes % 60);
+      if (minutes === 0) return `${hours}h`;
+      return `${hours}h ${minutes}m`;
+    } else {
+      // minutes
+      return `${Math.round(timeInMinutes)}m`;
+    }
   }
-
-  return `${Math.round(timeInMinutes)}m`;
-}
-
 
   formatControlPointTime(time: number): string {
     return this.formatTimeLabel(time);
@@ -1132,6 +1133,73 @@ private formatTimeLabel(timeInMinutes: number): string {
     return this.testType() === "soak";
   }
 
+  private convertDurationValue(
+    value: number,
+    from: DurationUnit,
+    to: DurationUnit
+  ): number {
+    console.log(`    convertDurationValue(${value}, ${from}, ${to})`);
+    
+    if (from === to) {
+      console.log(`    → Same units, returning ${value}`);
+      return value;
+    }
+
+    if (from === "minutes" && to === "hours") {
+      const result = value / 60;
+      console.log(`    → minutes to hours: ${value} / 60 = ${result}`);
+      return result;
+    }
+
+    if (from === "hours" && to === "minutes") {
+      const result = value * 60;
+      console.log(`    → hours to minutes: ${value} * 60 = ${result}`);
+      return result;
+    }
+
+    console.log(`    → Unknown conversion, returning ${value}`);
+    return value;
+  }
+
+  onDurationUnitChange(newUnit: DurationUnit): void {
+    const prevUnit = this.durationUnit();
+    
+    console.log('=== onDurationUnitChange START ===');
+    console.log('Previous Unit:', prevUnit);
+    console.log('New Unit:', newUnit);
+    
+    if (prevUnit === newUnit) {
+      console.log('Same unit, returning early');
+      return;
+    }
+
+    // המר את ה-duration
+    const oldDuration = this.duration();
+    const newDuration = this.convertDurationValue(
+      oldDuration,
+      prevUnit,
+      newUnit
+    );
+    
+    console.log('Duration conversion:', oldDuration, prevUnit, '→', newDuration, newUnit);
+
+    // הנקודות בגרף תמיד נשארות בדקות!
+    // לא צריך להמיר אותן כי הן פנימית תמיד בדקות
+    console.log('Control points stay the same (always in minutes internally)');
+
+    // עדכן רק את היחידה ואת ה-duration
+    console.log('Setting new values...');
+    this.durationUnit.set(newUnit);
+    this.duration.set(Math.max(0.1, +newDuration.toFixed(2)));
+
+    console.log('Final state:');
+    console.log('  durationUnit:', this.durationUnit());
+    console.log('  duration:', this.duration());
+    console.log('  controlPoints:', JSON.stringify(this.controlPoints()));
+    console.log('  totalDurationInMinutes:', this.totalDurationInMinutes());
+    console.log('=== onDurationUnitChange END ===');
+  }
+
   toggleAdvancedOptions(): void {
     this.showAdvancedOptions.update((v) => !v);
   }
@@ -1146,7 +1214,7 @@ private formatTimeLabel(timeInMinutes: number): string {
 
     const points = this.controlPoints().filter((_, i) => i !== index);
     this.controlPoints.set(points);
-
+    
     // סימון שהגרף נערך
     const type = this.testType();
     this.testTypeStates[type].hasBeenEdited = true;
@@ -1232,38 +1300,6 @@ private formatTimeLabel(timeInMinutes: number): string {
       updated[index] = { ...updated[index], value: value };
       return updated;
     });
-  }
-
-  private convertDurationValue(
-    value: number,
-    from: DurationUnit,
-    to: DurationUnit
-  ): number {
-    if (from === to) return value;
-
-    if (from === "minutes" && to === "hours") {
-      return value / 60;
-    }
-
-    if (from === "hours" && to === "minutes") {
-      return value * 60;
-    }
-
-    return value;
-  }
-
-  onDurationUnitChange(newUnit: DurationUnit): void {
-    const prevUnit = this.durationUnit();
-    if (prevUnit === newUnit) return;
-
-    const newDuration = this.convertDurationValue(
-      this.duration(),
-      prevUnit,
-      newUnit
-    );
-
-    this.durationUnit.set(newUnit);
-    this.duration.set(Math.max(0.1, +newDuration.toFixed(2)));
   }
 
   runLoadTest(): void {
@@ -1354,7 +1390,7 @@ private formatTimeLabel(timeInMinutes: number): string {
     this.thresholds.set([{ metric: "", condition: "" }]);
     this.environmentVariables.set([{ key: "", value: "" }]);
     this.executionStatus.set({ status: "idle" });
-
+    
     // Reset all test type states to defaults
     this.testTypeStates = {
       load: {
@@ -1414,7 +1450,7 @@ private formatTimeLabel(timeInMinutes: number): string {
         hasBeenEdited: false,
       },
     };
-
+    
     this.loadTestTypeState("load");
   }
 
@@ -1453,7 +1489,7 @@ private formatTimeLabel(timeInMinutes: number): string {
     const elapsed = this.executionStatus().elapsedTime || 0;
     const hours = Math.floor(elapsed / 60);
     const minutes = elapsed % 60;
-
+    
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
