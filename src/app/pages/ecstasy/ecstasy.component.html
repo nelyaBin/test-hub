@@ -1,0 +1,483 @@
+<!-- pages/ecstasy/ecstasy.component.html -->
+<div class="load-test-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <h1 class="page-title">Load Test Runner</h1>
+    <p class="page-subtitle">Run and configure load tests using k6</p>
+  </div>
+
+  <!-- Configuration Section -->
+  <div class="config-section">
+    <div class="config-card">
+      <!-- Component Selection -->
+      <div class="input-group">
+        <label class="input-label">Component</label>
+        <select
+          class="config-select"
+          [value]="selectedComponent()"
+          (change)="onComponentChange($any($event.target).value)"
+        >
+          <option value="">Select component to test</option>
+          @for (component of components(); track component) {
+          <option [value]="component">{{ component }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Target URL -->
+      <div class="input-group">
+        <label class="input-label">Target URL</label>
+        <input
+          type="text"
+          class="config-input"
+          [class.error]="targetUrlError()"
+          placeholder="Enter Atlas environment URL..."
+          [value]="targetUrl()"
+          (input)="onTargetUrlChange($any($event.target).value)"
+        />
+        @if (targetUrlError()) {
+        <span class="error-message">{{ targetUrlError() }}</span>
+        }
+      </div>
+    </div>
+
+    <!-- Load Profile Section with Graph -->
+    <div class="config-card">
+      <div class="section-header-with-toggle">
+        <h3 class="section-title">
+          <span class="section-icon">📈</span>
+          Load Profile
+        </h3>
+        <div class="toggle-buttons-group">
+          <button
+            class="k6-phases-toggle"
+            (click)="toggleK6Phases()"
+            type="button"
+            [class.active]="showK6Phases()"
+          >
+            <span class="toggle-icon">{{ showK6Phases() ? "👁️" : "👁️‍🗨️" }}</span>
+            <span>{{ showK6Phases() ? "Hide" : "Show" }} k6 Phases</span>
+          </button>
+          <button
+            class="edit-mode-toggle"
+            (click)="toggleEditMode()"
+            type="button"
+            [class.active]="editMode()"
+            title="Toggle edit mode"
+          >
+            <span class="toggle-icon">✏️</span>
+            <span>{{ editMode() ? "Lock" : "Edit" }} Curve</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Load Profile Graph -->
+      <div class="graph-container">
+        <canvas #graphCanvas class="load-graph"></canvas>
+        @if (editMode()) {
+        <div class="graph-hint">
+          <span class="hint-icon">💡</span>
+          <span
+            >Click to add points • Drag to move • Right-click to delete</span
+          >
+        </div>
+        } @if (!editMode()) {
+        <div class="graph-hint preset-hint">
+          <span class="hint-icon">ℹ️</span>
+          <span
+            >Click "Edit Curve" button to manually adjust the load profile</span
+          >
+        </div>
+        }
+      </div>
+
+      <!-- Test Type -->
+      <div class="input-group">
+        <label class="input-label">Test Type (Preset)</label>
+        <div class="radio-group">
+          @for (type of testTypes; track type.value) {
+          <label class="radio-label">
+            <input
+              type="radio"
+              name="testType"
+              [value]="type.value"
+              [checked]="testType() === type.value"
+              (change)="onTestTypeChange(type.value)"
+            />
+            <span>{{ type.label }}</span>
+          </label>
+          }
+        </div>
+      </div>
+
+      <!-- Core Load Parameters -->
+      <div class="load-params-grid">
+        <div class="input-group">
+          <label class="input-label">Virtual Users (VUs)</label>
+          <input
+            type="number"
+            class="config-input"
+            min="1"
+            [value]="virtualUsers()"
+            (input)="virtualUsers.set(+$any($event.target).value)"
+          />
+          <span class="helper-text">Maximum concurrent virtual users</span>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Duration</label>
+          <div class="duration-input-group">
+            <input
+              type="number"
+              class="config-input"
+              min="1"
+              [value]="duration()"
+              (input)="duration.set(+$any($event.target).value)"
+            />
+            @if (canShowHoursOption()) {
+            <select
+              class="config-select duration-unit"
+              [value]="durationUnit()"
+              (change)="durationUnit.set($any($event.target).value)"
+            >
+              <option value="minutes">Minutes</option>
+              <option value="hours">Hours</option>
+            </select>
+            } @else {
+            <span class="duration-unit-label">Minutes</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario Type -->
+      <div class="input-group">
+        <label class="input-label">Scenario Type</label>
+        <div class="radio-group">
+          @for (scenario of scenarioTypes; track scenario.value) {
+          <label class="radio-label">
+            <input
+              type="radio"
+              name="scenarioType"
+              [value]="scenario.value"
+              [checked]="scenarioType() === scenario.value"
+              (change)="scenarioType.set(scenario.value)"
+            />
+            <span>{{ scenario.label }}</span>
+          </label>
+          }
+        </div>
+      </div>
+
+      <!-- Ramp-up and Ramp-down (conditional) -->
+      @if (scenarioType() === 'ramping-vus') {
+      <div class="ramp-params-grid">
+        <div class="input-group">
+          <label class="input-label">Ramp-up Duration (minutes)</label>
+          <input
+            type="number"
+            class="config-input"
+            min="0"
+            step="0.1"
+            [value]="rampUpDuration()"
+            (input)="rampUpDuration.set(+$any($event.target).value)"
+          />
+        </div>
+        <div class="input-group">
+          <label class="input-label">Ramp-down Duration (minutes)</label>
+          <input
+            type="number"
+            class="config-input"
+            min="0"
+            step="0.1"
+            [value]="rampDownDuration()"
+            (input)="rampDownDuration.set(+$any($event.target).value)"
+          />
+        </div>
+      </div>
+      }
+
+      <!-- Control Points Summary -->
+      @if (editMode() && controlPoints().length > 0) {
+      <div class="control-points-summary">
+        <label class="input-label">Control Points</label>
+        <div class="points-list">
+          @for (point of controlPoints(); track $index) {
+          <div class="point-item">
+            <span class="point-time">{{
+              formatControlPointTime(point.time)
+            }}</span>
+            <span class="point-separator">→</span>
+            <span class="point-vus">{{ point.vus }} VUs</span>
+            @if (controlPoints().length > 2) {
+            <button
+              class="point-delete-btn"
+              type="button"
+              (click)="deleteControlPoint($index)"
+              title="Delete point"
+            >
+              ✕
+            </button>
+            }
+          </div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Advanced Options -->
+    <div class="config-card">
+      <button
+        class="advanced-toggle"
+        (click)="toggleAdvancedOptions()"
+        type="button"
+      >
+        <span class="toggle-icon" [class.open]="showAdvancedOptions()">▼</span>
+        <span>Advanced Options</span>
+      </button>
+
+      @if (showAdvancedOptions()) {
+      <div class="advanced-content">
+        <!-- Headers -->
+        <div class="input-group">
+          <label class="input-label">Headers</label>
+          <div class="key-value-list">
+            @for (header of headers(); track $index) {
+            <div class="key-value-row">
+              <input
+                type="text"
+                class="config-input key-input"
+                placeholder="Key"
+                [value]="header.key"
+                (input)="updateHeaderKey($index, $any($event.target).value)"
+              />
+              <input
+                type="text"
+                class="config-input value-input"
+                placeholder="Value"
+                [value]="header.value"
+                (input)="updateHeaderValue($index, $any($event.target).value)"
+              />
+              <button
+                class="remove-btn"
+                type="button"
+                (click)="removeHeader($index)"
+                [disabled]="headers().length === 1"
+              >
+                ✕
+              </button>
+            </div>
+            }
+            <button class="add-btn" type="button" (click)="addHeader()">
+              + Add Header
+            </button>
+          </div>
+        </div>
+
+        <!-- Thresholds -->
+        <div class="input-group">
+          <label class="input-label">Thresholds</label>
+          <div class="key-value-list">
+            @for (threshold of thresholds(); track $index) {
+            <div class="key-value-row">
+              <input
+                type="text"
+                class="config-input key-input"
+                placeholder="Metric (e.g., p95)"
+                [value]="threshold.metric"
+                (input)="
+                  updateThresholdMetric($index, $any($event.target).value)
+                "
+              />
+              <input
+                type="text"
+                class="config-input value-input"
+                placeholder="Condition (e.g., < 500ms)"
+                [value]="threshold.condition"
+                (input)="
+                  updateThresholdCondition($index, $any($event.target).value)
+                "
+              />
+              <button
+                class="remove-btn"
+                type="button"
+                (click)="removeThreshold($index)"
+                [disabled]="thresholds().length === 1"
+              >
+                ✕
+              </button>
+            </div>
+            }
+            <button class="add-btn" type="button" (click)="addThreshold()">
+              + Add Threshold
+            </button>
+          </div>
+        </div>
+
+        <!-- Environment Variables -->
+        <div class="input-group">
+          <label class="input-label">Environment Variables</label>
+          <div class="key-value-list">
+            @for (envVar of environmentVariables(); track $index) {
+            <div class="key-value-row">
+              <input
+                type="text"
+                class="config-input key-input"
+                placeholder="Key"
+                [value]="envVar.key"
+                (input)="updateEnvVarKey($index, $any($event.target).value)"
+              />
+              <input
+                type="text"
+                class="config-input value-input"
+                placeholder="Value"
+                [value]="envVar.value"
+                (input)="updateEnvVarValue($index, $any($event.target).value)"
+              />
+              <button
+                class="remove-btn"
+                type="button"
+                (click)="removeEnvironmentVariable($index)"
+                [disabled]="environmentVariables().length === 1"
+              >
+                ✕
+              </button>
+            </div>
+            }
+            <button
+              class="add-btn"
+              type="button"
+              (click)="addEnvironmentVariable()"
+            >
+              + Add Environment Variable
+            </button>
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Run Controls -->
+  <div class="run-controls">
+    <button
+      class="run-button"
+      [disabled]="!canRunTest()"
+      (click)="runLoadTest()"
+      type="button"
+    >
+      <span class="run-icon">🚀</span>
+      <span>Run Load Test</span>
+    </button>
+    <div class="secondary-actions">
+      <button class="secondary-button" type="button" (click)="saveAsPreset()">
+        Save as Preset
+      </button>
+      <button
+        class="secondary-button"
+        type="button"
+        (click)="resetConfiguration()"
+      >
+        Reset Configuration
+      </button>
+    </div>
+  </div>
+
+  <!-- Execution Status -->
+  @if (executionStatus().status !== 'idle') {
+  <div class="execution-status" [class]="'status-' + executionStatus().status">
+    <div class="status-header">
+      <h3 class="status-title">
+        @switch (executionStatus().status) { @case ('running') {
+        <span class="status-icon">⏳</span>
+        Running } @case ('completed') {
+        <span class="status-icon">✅</span>
+        Completed } @case ('failed') {
+        <span class="status-icon">❌</span>
+        Failed } }
+      </h3>
+      @if (executionStatus().startTime) {
+      <span class="start-time">
+        Started: {{ executionStatus().startTime | date : "short" }}
+      </span>
+      }
+    </div>
+
+    @if (executionStatus().status === 'running') {
+    <div class="status-details">
+      <div class="status-item">
+        <span class="status-label">Elapsed Time:</span>
+        <span class="status-value">{{ getElapsedTimeFormatted() }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Current VUs:</span>
+        <span class="status-value">{{
+          executionStatus().currentVUs || 0
+        }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Progress:</span>
+        <span class="status-value">{{ getProgressPercentage() }}%</span>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div
+        class="progress-fill"
+        [style.width.%]="executionStatus().progress || 0"
+      ></div>
+    </div>
+    } @if (executionStatus().status === 'completed') {
+    <div class="status-details">
+      <div class="status-item">
+        <span class="status-label">Test ID:</span>
+        <span class="status-value">{{ executionStatus().testId }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Total Duration:</span>
+        <span class="status-value">{{ getElapsedTimeFormatted() }}</span>
+      </div>
+    </div>
+    <button class="view-results-button" type="button" (click)="viewResults()">
+      📊 View Results Dashboard
+    </button>
+    }
+  </div>
+  }
+
+  <!-- Results Dashboard Iframe Modal -->
+  @if (showResultsIframe()) {
+  <div class="iframe-modal-overlay" (click)="closeResultsIframe()">
+    <div class="iframe-modal-container" (click)="$event.stopPropagation()">
+      <div class="iframe-modal-header">
+        <div class="iframe-modal-title">
+          <span class="modal-icon">📊</span>
+          <h3>Load Test Results Dashboard</h3>
+          <span class="test-id-badge">{{ executionStatus().testId }}</span>
+        </div>
+        <button
+          class="close-iframe-btn"
+          type="button"
+          (click)="closeResultsIframe()"
+        >
+          ✕
+        </button>
+      </div>
+      <div class="iframe-content">
+        <iframe
+          [src]="getResultsUrl()"
+          class="results-iframe"
+          title="Load Test Results"
+          frameborder="0"
+          allowfullscreen
+        >
+        </iframe>
+        <div class="iframe-loading">
+          <div class="loading-spinner"></div>
+          <p>Loading results dashboard...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+</div>
