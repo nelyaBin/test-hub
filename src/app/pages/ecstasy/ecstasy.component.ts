@@ -102,7 +102,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   readonly hoveredPointIndex = signal<number | null>(null);
   readonly hoverPosition = signal<{ x: number; y: number } | null>(null);
   readonly previewPoint = signal<ControlPoint | null>(null);
-  
+
   private wasDragging = false;
 
   readonly showAdvancedOptions = signal<boolean>(false);
@@ -115,7 +115,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   readonly environmentVariables = signal<{ key: string; value: string }[]>([
     { key: "", value: "" },
   ]);
-
+  private isNormalizing = false;
   readonly executionStatus = signal<ExecutionStatus>({ status: "idle" });
   readonly showResultsIframe = signal<boolean>(false);
   private executionInterval?: number;
@@ -218,9 +218,9 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       controlPoints: [
         // הנקודות צריכות להיות בדקות כי totalDurationInMinutes מחזיר 60
         { time: 0, vus: 0 },
-        { time: 6, vus: 20 },    // 10% של 60 דקות = 6 דקות
-        { time: 54, vus: 20 },   // 90% של 60 דקות = 54 דקות
-        { time: 60, vus: 0 },    // 100% של 60 דקות = 60 דקות
+        { time: 6, vus: 20 }, // 10% של 60 דקות = 6 דקות
+        { time: 54, vus: 20 }, // 90% של 60 דקות = 54 דקות
+        { time: 60, vus: 0 }, // 100% של 60 דקות = 60 דקות
       ],
       isCustomMode: false,
       hasBeenEdited: false,
@@ -233,12 +233,15 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       const type = this.testType();
       this.loadTestTypeState(type);
     });
+    effect(() => {
+      this.adjustControlPointsForNewDuration();
+    });
 
     // Effect לשמירת שינויים בזמן אמת
     effect(() => {
       const type = this.testType();
       const state = this.testTypeStates[type];
-      
+
       state.virtualUsers = this.virtualUsers();
       state.duration = this.duration();
       state.durationUnit = this.durationUnit();
@@ -247,6 +250,38 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       state.rampDownDuration = this.rampDownDuration();
       state.controlPoints = [...this.controlPoints()];
       state.isCustomMode = this.isCustomMode();
+    });
+    effect(() => {
+      const points = this.controlPoints();
+      const duration = this.totalDurationInMinutes();
+
+      if (!points.length) return;
+
+      const last = points[points.length - 1];
+
+      const isLocked = Math.abs(last.time - duration) < 0.001;
+
+      console.groupCollapsed(
+        `%c📍 controlPoints changed`,
+        `color: ${isLocked ? "lightgreen" : "red"}; font-weight: bold`
+      );
+
+      console.log("Duration (minutes):", duration);
+      console.log("Last point time:", last.time);
+      console.log("Locked to end:", isLocked);
+      console.log("All points:", JSON.stringify(points));
+      console.log("Edited mode:", this.isCustomMode());
+      console.log(
+        "Has been edited flag:",
+        this.testTypeStates[this.testType()].hasBeenEdited
+      );
+
+      if (!isLocked) {
+        console.warn("❌ LAST POINT IS NOT AT END");
+        console.trace("Call stack");
+      }
+
+      console.groupEnd();
     });
 
     // Effect לעדכון גרף - רק אם מעולם לא היה במצב עריכה
@@ -259,7 +294,11 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       const state = this.testTypeStates[type];
 
       // עדכן גרף רק אם הגרף מעולם לא נערך ידנית
-      if (!isCustom && this.draggedPointIndex() === null && !state.hasBeenEdited) {
+      if (
+        !isCustom &&
+        this.draggedPointIndex() === null &&
+        !state.hasBeenEdited
+      ) {
         this.updateControlPointsFromConfig();
       }
     });
@@ -288,7 +327,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   private loadTestTypeState(type: TestType): void {
     const state = this.testTypeStates[type];
-    
+
     this.virtualUsers.set(state.virtualUsers);
     this.duration.set(state.duration);
     this.durationUnit.set(state.durationUnit);
@@ -297,6 +336,32 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.rampDownDuration.set(state.rampDownDuration);
     this.controlPoints.set([...state.controlPoints]);
     this.isCustomMode.set(state.isCustomMode);
+  }
+  private normalizeControlPointsToDuration(source: string): void {
+    if (this.isNormalizing) return;
+    this.isNormalizing = true;
+
+    const duration = this.totalDurationInMinutes();
+    const points = [...this.controlPoints()];
+    if (!points.length) {
+      this.isNormalizing = false;
+      return;
+    }
+
+    const filtered = points.filter(
+      (p, i) => i === points.length - 1 || p.time <= duration
+    );
+
+    const lastIdx = filtered.length - 1;
+
+    filtered[lastIdx] = {
+      ...filtered[lastIdx],
+      time: duration,
+    };
+
+    this.controlPoints.set(filtered);
+
+    this.isNormalizing = false;
   }
 
   private initializeCanvas(): void {
@@ -565,7 +630,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     points[index] = { time: newTime, vus: newVUs };
     this.controlPoints.set(points);
-    
+
     // סימון שהגרף נערך
     const type = this.testType();
     this.testTypeStates[type].hasBeenEdited = true;
@@ -584,13 +649,14 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
 
-    let newTime = Math.round(
-      Math.max(
-        0,
-        Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
-      ) / timeStep
-    ) * timeStep;
-    
+    let newTime =
+      Math.round(
+        Math.max(
+          0,
+          Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
+        ) / timeStep
+      ) * timeStep;
+
     let newVUs = Math.round(
       Math.max(
         0,
@@ -613,7 +679,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     points.splice(insertIdx, 0, { time: newTime, vus: newVUs });
     this.controlPoints.set(points);
-    
+
     // סימון שהגרף נערך
     const type = this.testType();
     this.testTypeStates[type].hasBeenEdited = true;
@@ -625,6 +691,10 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const duration = this.totalDurationInMinutes();
     const rampUp = this.rampUpDuration();
     const rampDown = this.rampDownDuration();
+
+    console.log("📊 updateControlPointsFromConfig called");
+    console.log("  Duration:", duration);
+    console.log("  Scenario:", scenario);
 
     let newPoints: ControlPoint[] = [];
 
@@ -662,7 +732,60 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       ];
     }
 
+    console.log("  New Points:", JSON.stringify(newPoints));
     this.controlPoints.set(newPoints);
+  }
+
+  // פונקציה חדשה: מתאימה נקודות קיימות לduration חדש
+  private adjustControlPointsForNewDuration(): void {
+    const currentPoints = this.controlPoints();
+    if (currentPoints.length === 0) return;
+
+    const newDuration = this.totalDurationInMinutes();
+    const oldDuration = currentPoints[currentPoints.length - 1].time;
+
+    console.log("=== adjustControlPointsForNewDuration ===");
+    console.log("Old Duration (from last point):", oldDuration);
+    console.log("New Duration:", newDuration);
+    console.log("Current Points:", JSON.stringify(currentPoints));
+
+    // אם ה-duration לא השתנה, אין צורך להתאים
+    if (Math.abs(oldDuration - newDuration) < 0.01) {
+      console.log("Duration unchanged, skipping adjustment");
+      return;
+    }
+
+    // חשב יחס התאמה
+    const ratio = newDuration / oldDuration;
+    console.log("Adjustment Ratio:", ratio);
+
+    // התאם את כל הנקודות פרופורציונלית
+    const adjustedPoints = currentPoints.map((point, index) => {
+      // הנקודה הראשונה תמיד ב-0
+      if (index === 0) {
+        return { ...point, time: 0 };
+      }
+      // הנקודה האחרונה תמיד בסוף הגרף
+      if (index === currentPoints.length - 1) {
+        console.log(`Last point adjusted: ${point.time} → ${newDuration}`);
+        return { ...point, time: newDuration };
+      }
+      // שאר הנקודות - התאם פרופורציונלית
+      const newTime = point.time * ratio;
+      console.log(`Point ${index} adjusted: ${point.time} → ${newTime}`);
+      return {
+        ...point,
+        time: newTime,
+      };
+    });
+
+    console.log("Adjusted Points:", JSON.stringify(adjustedPoints));
+    this.controlPoints.set(adjustedPoints);
+
+    // עדכן גם ב-state השמור
+    const type = this.testType();
+    this.testTypeStates[type].controlPoints = [...adjustedPoints];
+    console.log("=== adjustControlPointsForNewDuration END ===");
   }
 
   private drawGraph(): void {
@@ -1078,7 +1201,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   // Helper methods
   private formatTimeLabel(timeInMinutes: number): string {
     const unit = this.durationUnit();
-    
+
     if (unit === "hours") {
       const hours = Math.floor(timeInMinutes / 60);
       const minutes = Math.round(timeInMinutes % 60);
@@ -1139,7 +1262,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     to: DurationUnit
   ): number {
     console.log(`    convertDurationValue(${value}, ${from}, ${to})`);
-    
+
     if (from === to) {
       console.log(`    → Same units, returning ${value}`);
       return value;
@@ -1163,13 +1286,13 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
   onDurationUnitChange(newUnit: DurationUnit): void {
     const prevUnit = this.durationUnit();
-    
-    console.log('=== onDurationUnitChange START ===');
-    console.log('Previous Unit:', prevUnit);
-    console.log('New Unit:', newUnit);
-    
+
+    console.log("=== onDurationUnitChange START ===");
+    console.log("Previous Unit:", prevUnit);
+    console.log("New Unit:", newUnit);
+
     if (prevUnit === newUnit) {
-      console.log('Same unit, returning early');
+      console.log("Same unit, returning early");
       return;
     }
 
@@ -1180,24 +1303,30 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
       prevUnit,
       newUnit
     );
-    
-    console.log('Duration conversion:', oldDuration, prevUnit, '→', newDuration, newUnit);
+
+    console.log(
+      "Duration conversion:",
+      oldDuration,
+      prevUnit,
+      "→",
+      newDuration,
+      newUnit
+    );
 
     // הנקודות בגרף תמיד נשארות בדקות!
     // לא צריך להמיר אותן כי הן פנימית תמיד בדקות
-    console.log('Control points stay the same (always in minutes internally)');
-
-    // עדכן רק את היחידה ואת ה-duration
-    console.log('Setting new values...');
+    console.log("Control points stay the same (always in minutes internally)");
     this.durationUnit.set(newUnit);
     this.duration.set(Math.max(0.1, +newDuration.toFixed(2)));
 
-    console.log('Final state:');
-    console.log('  durationUnit:', this.durationUnit());
-    console.log('  duration:', this.duration());
-    console.log('  controlPoints:', JSON.stringify(this.controlPoints()));
-    console.log('  totalDurationInMinutes:', this.totalDurationInMinutes());
-    console.log('=== onDurationUnitChange END ===');
+    this.normalizeControlPointsToDuration("onDurationUnitChange");
+
+    console.log("Final state:");
+    console.log("  durationUnit:", this.durationUnit());
+    console.log("  duration:", this.duration());
+    console.log("  controlPoints:", JSON.stringify(this.controlPoints()));
+    console.log("  totalDurationInMinutes:", this.totalDurationInMinutes());
+    console.log("=== onDurationUnitChange END ===");
   }
 
   toggleAdvancedOptions(): void {
@@ -1214,7 +1343,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     const points = this.controlPoints().filter((_, i) => i !== index);
     this.controlPoints.set(points);
-    
+
     // סימון שהגרף נערך
     const type = this.testType();
     this.testTypeStates[type].hasBeenEdited = true;
@@ -1390,7 +1519,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     this.thresholds.set([{ metric: "", condition: "" }]);
     this.environmentVariables.set([{ key: "", value: "" }]);
     this.executionStatus.set({ status: "idle" });
-    
+
     // Reset all test type states to defaults
     this.testTypeStates = {
       load: {
@@ -1450,7 +1579,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
         hasBeenEdited: false,
       },
     };
-    
+
     this.loadTestTypeState("load");
   }
 
@@ -1489,7 +1618,7 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     const elapsed = this.executionStatus().elapsedTime || 0;
     const hours = Math.floor(elapsed / 60);
     const minutes = elapsed % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
