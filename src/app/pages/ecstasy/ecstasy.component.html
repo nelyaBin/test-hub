@@ -154,18 +154,6 @@
       <div class="input-group">
         <label class="input-label">Scenario Type</label>
         <div class="radio-group">
-          @for (scenario of scenarioTypes; track scenario.value) {
-          <label class="radio-label">
-            <input
-              type="radio"
-              name="scenarioType"
-              [value]="scenario.value"
-              [checked]="scenarioType() === scenario.value"
-              (change)="scenarioType.set(scenario.value)"
-            />
-            <span>{{ scenario.label }}</span>
-          </label>
-          }
         </div>
       </div>
 
@@ -364,7 +352,7 @@
     <button
       class="run-button"
       [disabled]="!canRunTest()"
-      (click)="runLoadTest()"
+      (click)="runTest()"
       type="button"
     >
       <span class="run-icon">🚀</span>

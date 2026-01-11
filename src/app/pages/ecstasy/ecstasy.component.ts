@@ -11,7 +11,7 @@ import {
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
-
+import { HttpClient } from '@angular/common/http';
 export type TestType = "load" | "stress" | "spike" | "soak";
 export type ScenarioType =
   | "fixed-vus"
@@ -125,14 +125,26 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   private readonly pointRadius = 7;
   private readonly hitRadius = 20;
 
-  readonly isConfigurationValid = computed(() => {
-    return (
-      this.selectedComponent() !== "" &&
-      this.isTargetUrlValid() &&
-      this.virtualUsers() > 0 &&
-      this.duration() > 0
-    );
-  });
+readonly isUrlValidComputed = computed(() => {
+  const url = this.targetUrl().trim();
+  if (!url) return true; // ריק = תקין
+  
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === "http:" || urlObj.protocol === "https:";
+  } catch {
+    return false;
+  }
+});
+readonly isConfigurationValid = computed(() => {
+  const hasComponent = this.selectedComponent() !== "";
+  const hasUrl = this.targetUrl().trim() !== "";
+  const urlValid = this.isUrlValidComputed(); // שימוש ב-computed במקום בפונקציה
+  const hasVUs = this.virtualUsers() > 0;
+  const hasDuration = this.duration() > 0;
+  
+  return hasComponent && hasUrl && urlValid && hasVUs && hasDuration;
+});
 
   readonly canRunTest = computed(() => {
     return (
@@ -227,7 +239,8 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
     },
   };
 
-  constructor(private sanitizer: DomSanitizer) {
+  constructor( private sanitizer: DomSanitizer,
+  private http: HttpClient) {
     // Effect לשינוי test type - טעינת מצב שמור
     effect(() => {
       const type = this.testType();
@@ -363,6 +376,50 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
 
     this.isNormalizing = false;
   }
+
+runTest(): void {
+  // if (!this.canRunTest()) return;
+
+  const payload: LoadTestConfiguration = {
+    component: this.selectedComponent(),
+    targetUrl: this.targetUrl(),
+    testType: this.testType(),
+    virtualUsers: this.virtualUsers(),
+    duration: this.duration(),
+    durationUnit: this.durationUnit(),
+    scenarioType: this.scenarioType(),
+    rampUpDuration: this.rampUpDuration(),
+    rampDownDuration: this.rampDownDuration(),
+    headers: this.headers(),
+    thresholds: this.thresholds(),
+    environmentVariables: this.environmentVariables(),
+    controlPoints: this.controlPoints(),
+  };
+
+  console.log('📤 POST /run load test', payload);
+
+  this.executionStatus.set({
+    status: 'running',
+    startTime: new Date(),
+  });
+
+  this.http
+    .post('http://localhost:8080/api/load-tests/run', payload)
+    .subscribe({
+      next: (res: any) => {
+        console.log('✅ Test started', res);
+        this.executionStatus.update((s) => ({
+          ...s,
+          status: 'running',
+          testId: res?.testId,
+        }));
+      },
+      error: (err) => {
+        console.error('❌ Failed to start test', err);
+        this.executionStatus.set({ status: 'failed' });
+      },
+    });
+}
 
   private initializeCanvas(): void {
     const canvas = this.canvasRef?.nativeElement;
@@ -1218,31 +1275,30 @@ export class EcstasyComponent implements AfterViewInit, OnDestroy {
   }
 
   // Public methods
-  isTargetUrlValid(): boolean {
-    const url = this.targetUrl().trim();
-    if (!url) {
-      this.targetUrlError.set("");
-      return false;
-    }
-
-    try {
-      const urlObj = new URL(url);
-      const isValid =
-        urlObj.protocol === "http:" || urlObj.protocol === "https:";
-      this.targetUrlError.set(
-        isValid ? "" : "URL must start with http:// or https://"
-      );
-      return isValid;
-    } catch {
-      this.targetUrlError.set("Invalid URL format");
-      return false;
-    }
+   isTargetUrlValid(): boolean {
+  const url = this.targetUrl().trim();
+  if (!url) {
+    this.targetUrlError.set("");
+    return true;
   }
 
-  onTargetUrlChange(value: string): void {
-    this.targetUrl.set(value);
-    this.isTargetUrlValid();
+  try {
+    const urlObj = new URL(url);
+    const isValid =
+      urlObj.protocol === "http:" || urlObj.protocol === "https:";
+    this.targetUrlError.set(
+      isValid ? "" : "URL must start with http:// or https://"
+    );
+    return isValid;
+  } catch {
+    this.targetUrlError.set("Invalid URL format");
+    return false;
   }
+}
+onTargetUrlChange(value: string): void {
+  this.targetUrl.set(value);
+  this.isTargetUrlValid(); // עדכון ה-error message
+}
 
   onComponentChange(component: string): void {
     this.selectedComponent.set(component);
