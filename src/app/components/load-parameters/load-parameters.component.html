@@ -1,4 +1,23 @@
-<!-- src/app/components/load-parameters/load-parameters.component.html -->
+<!-- Test Type (Preset) -->
+<div class="input-group">
+  <label class="input-label">Test Type (Preset)</label>
+  <div class="radio-group">
+    @for (type of testTypes; track type.value) {
+      <label class="radio-label">
+        <input
+          type="radio"
+          name="testType"
+          [value]="type.value"
+          [checked]="testType() === type.value"
+          (change)="onTestTypeChange(type.value)"
+        />
+        <span>{{ type.label }}</span>
+      </label>
+    }
+  </div>
+</div>
+
+<!-- Load Parameters -->
 <div class="load-params-grid">
   <div class="input-group">
     <label class="input-label">Virtual Users (VUs)</label>
@@ -9,7 +28,9 @@
       [value]="virtualUsers()"
       (input)="onVirtualUsersChange(+$any($event.target).value)"
     />
-    <span class="helper-text">Maximum concurrent virtual users</span>
+    <span class="helper-text">
+      Maximum concurrent virtual users
+    </span>
   </div>
 
   <div class="input-group">
@@ -22,6 +43,7 @@
         [value]="duration()"
         (input)="onDurationChange(+$any($event.target).value)"
       />
+
       @if (showHoursOption()) {
         <select
           class="config-select duration-unit"
@@ -57,7 +79,6 @@
   </div>
 </div>
 
-<!-- Ramp Parameters -->
 @if (showRampParameters()) {
   <div class="ramp-params-grid">
     <div class="input-group">
@@ -71,6 +92,7 @@
         (input)="onRampUpChange(+$any($event.target).value)"
       />
     </div>
+
     <div class="input-group">
       <label class="input-label">Ramp-down Duration (minutes)</label>
       <input

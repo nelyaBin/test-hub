@@ -1,24 +1,54 @@
 // src/app/components/load-parameters/load-parameters.component.ts
-import { Component, signal, input, output, computed } from '@angular/core';
+import {
+  Component,
+  signal,
+  input,
+  output,
+  computed,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ScenarioType, DurationUnit, TestType } from '../../models/load-test.models';
+import {
+  ScenarioType,
+  DurationUnit,
+  TestType,
+} from '../../models/load-test.models';
 
 @Component({
   selector: 'app-load-parameters',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './load-parameters.component.html',
-  styleUrls: ['./load-parameters.component.scss']
+  styleUrls: ['./load-parameters.component.scss'],
 })
 export class LoadParametersComponent {
+  /* =========================
+     Test Type (FROM PARENT)
+  ========================= */
+  readonly testType = input.required<TestType>();
+
+  readonly testTypes: { value: TestType; label: string }[] = [
+    { value: 'load', label: 'Load Test' },
+    { value: 'stress', label: 'Stress Test' },
+    { value: 'spike', label: 'Spike Test' },
+    { value: 'soak', label: 'Soak Test' },
+  ];
+
+  readonly testTypeChanged = output<TestType>();
+
+  onTestTypeChange(type: TestType): void {
+    this.testTypeChanged.emit(type);
+  }
+
+  /* =========================
+     Load Parameters
+  ========================= */
   readonly virtualUsers = signal<number>(10);
   readonly duration = signal<number>(5);
   readonly durationUnit = signal<DurationUnit>('minutes');
   readonly scenarioType = signal<ScenarioType>('fixed-vus');
   readonly rampUpDuration = signal<number>(0);
   readonly rampDownDuration = signal<number>(0);
-  readonly testType = input.required<TestType>();
 
   readonly virtualUsersChanged = output<number>();
   readonly durationChanged = output<number>();
@@ -33,8 +63,13 @@ export class LoadParametersComponent {
     { value: 'constant-arrival-rate', label: 'Constant Arrival Rate' },
   ];
 
-  readonly showHoursOption = computed(() => this.testType() === 'soak');
-  readonly showRampParameters = computed(() => this.scenarioType() === 'ramping-vus');
+  readonly showHoursOption = computed(
+    () => this.testType() === 'soak'
+  );
+
+  readonly showRampParameters = computed(
+    () => this.scenarioType() === 'ramping-vus'
+  );
 
   onVirtualUsersChange(value: number): void {
     this.virtualUsers.set(value);

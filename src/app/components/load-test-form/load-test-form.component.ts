@@ -15,7 +15,6 @@ export class LoadTestFormComponent {
   readonly selectedComponent = signal<string>('');
   readonly targetUrl = signal<string>('');
   readonly targetUrlError = signal<string>('');
-  readonly testType = signal<TestType>('load');
   
   readonly components = signal<string[]>([
     'API Gateway',
@@ -25,17 +24,9 @@ export class LoadTestFormComponent {
     'Analytics Service',
   ]);
 
-  readonly testTypes: { value: TestType; label: string }[] = [
-    { value: 'load', label: 'Load Test' },
-    { value: 'stress', label: 'Stress Test' },
-    { value: 'spike', label: 'Spike Test' },
-    { value: 'soak', label: 'Soak Test' },
-  ];
-
   // Outputs
   readonly componentChanged = output<string>();
   readonly urlChanged = output<string>();
-  readonly testTypeChanged = output<TestType>();
 
   onComponentChange(component: string): void {
     this.selectedComponent.set(component);
@@ -46,11 +37,6 @@ export class LoadTestFormComponent {
     this.targetUrl.set(value);
     this.validateUrl(value);
     this.urlChanged.emit(value);
-  }
-
-  onTestTypeChange(testType: TestType): void {
-    this.testType.set(testType);
-    this.testTypeChanged.emit(testType);
   }
 
   private validateUrl(url: string): void {

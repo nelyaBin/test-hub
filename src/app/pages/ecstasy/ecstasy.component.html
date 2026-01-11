@@ -12,8 +12,7 @@
     <app-load-test-form
       (componentChanged)="onComponentChanged($event)"
       (urlChanged)="onUrlChanged($event)"
-      (testTypeChanged)="onTestTypeChanged($event)"
-    />
+    ></app-load-test-form>
 
     <!-- Graph Section -->
     <div class="config-card">
@@ -22,22 +21,25 @@
           <span class="section-icon">📈</span>
           Load Profile
         </h3>
+
         <div class="toggle-buttons-group">
           <button
             class="k6-phases-toggle"
-            (click)="toggleK6Phases()"
             type="button"
+            (click)="toggleK6Phases()"
             [class.active]="showK6Phases()"
           >
-            <span class="toggle-icon">{{ showK6Phases() ? '👁️' : '👁️‍🗨️' }}</span>
+            <span class="toggle-icon">
+              {{ showK6Phases() ? '👁️' : '👁️‍🗨️' }}
+            </span>
             <span>{{ showK6Phases() ? 'Hide' : 'Show' }} k6 Phases</span>
           </button>
+
           <button
             class="edit-mode-toggle"
-            (click)="toggleEditMode()"
             type="button"
+            (click)="toggleEditMode()"
             [class.active]="isCustomMode()"
-            title="Toggle edit mode"
           >
             <span class="toggle-icon">✏️</span>
             <span>{{ isCustomMode() ? 'Lock' : 'Edit' }} Curve</span>
@@ -45,6 +47,7 @@
         </div>
       </div>
 
+      <!-- Graph -->
       <app-load-graph
         [controlPoints]="controlPoints()"
         [maxVUs]="maxVUs()"
@@ -55,43 +58,19 @@
         (pointAdded)="onPointAdded($event)"
         (pointUpdated)="onPointUpdated($event)"
         (pointDeleted)="onPointDeleted($event)"
-      />
+      ></app-load-graph>
 
+      <!-- Load Parameters (THE ONLY SOURCE OF testType) -->
       <app-load-parameters
         [testType]="testType()"
+        (testTypeChanged)="onTestTypeChanged($event)"
         (virtualUsersChanged)="onVirtualUsersChanged($event)"
         (durationChanged)="onDurationChanged($event)"
         (durationUnitChanged)="onDurationUnitChanged($event)"
         (scenarioTypeChanged)="onScenarioTypeChanged($event)"
         (rampUpChanged)="onRampUpChanged($event)"
         (rampDownChanged)="onRampDownChanged($event)"
-      />
-
-      <!-- Control Points Summary -->
-      @if (isCustomMode() && controlPoints().length > 0) {
-        <div class="control-points-summary">
-          <label class="input-label">Control Points</label>
-          <div class="points-list">
-            @for (point of controlPoints(); track $index) {
-              <div class="point-item">
-                <span class="point-time">{{ formatControlPointTime(point.time) }}</span>
-                <span class="point-separator">→</span>
-                <span class="point-vus">{{ point.vus }} VUs</span>
-                @if (controlPoints().length > 2) {
-                  <button
-                    class="point-delete-btn"
-                    type="button"
-                    (click)="onPointDeleted($index)"
-                    title="Delete point"
-                  >
-                    ✕
-                  </button>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
+      ></app-load-parameters>
     </div>
 
     <!-- Advanced Options -->
@@ -99,76 +78,19 @@
       (headersChanged)="onHeadersChanged($event)"
       (thresholdsChanged)="onThresholdsChanged($event)"
       (envVarsChanged)="onEnvVarsChanged($event)"
-    />
+    ></app-advanced-options>
   </div>
 
   <!-- Run Controls -->
   <div class="run-controls">
     <button
       class="run-button"
+      type="button"
       [disabled]="!canRunTest()"
       (click)="runTest()"
-      type="button"
     >
       <span class="run-icon">🚀</span>
       <span>Run Load Test</span>
     </button>
-    <div class="secondary-actions">
-      <button class="secondary-button" type="button" (click)="saveAsPreset()">
-        Save as Preset
-      </button>
-      <button
-        class="secondary-button"
-        type="button"
-        (click)="resetConfiguration()"
-      >
-        Reset Configuration
-      </button>
-    </div>
   </div>
-
-  <!-- Execution Status -->
-  @if (executionStatus().status !== 'idle') {
-    <app-execution-status
-      [status]="executionStatus()"
-      [totalDuration]="totalDurationInMinutes()"
-      (viewResults)="viewResults()"
-    />
-  }
-
-  <!-- Results Dashboard Iframe Modal -->
-  @if (showResultsIframe()) {
-    <div class="iframe-modal-overlay" (click)="closeResultsIframe()">
-      <div class="iframe-modal-container" (click)="$event.stopPropagation()">
-        <div class="iframe-modal-header">
-          <div class="iframe-modal-title">
-            <span class="modal-icon">📊</span>
-            <h3>Load Test Results Dashboard</h3>
-            <span class="test-id-badge">{{ executionStatus().testId }}</span>
-          </div>
-          <button
-            class="close-iframe-btn"
-            type="button"
-            (click)="closeResultsIframe()"
-          >
-            ✕
-          </button>
-        </div>
-        <div class="iframe-content">
-          <iframe
-            [src]="getResultsUrl()"
-            class="results-iframe"
-            title="Load Test Results"
-            frameborder="0"
-            allowfullscreen
-          >
-          </iframe>
-          <div class="iframe-loading">
-            <div class="loading-spinner"></div>
-            <p>Loading results dashboard...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  }
 </div>

@@ -30,23 +30,4 @@
       <span class="error-message">{{ targetUrlError() }}</span>
     }
   </div>
-
-  <!-- Test Type -->
-  <div class="input-group">
-    <label class="input-label">Test Type (Preset)</label>
-    <div class="radio-group">
-      @for (type of testTypes; track type.value) {
-        <label class="radio-label">
-          <input
-            type="radio"
-            name="testType"
-            [value]="type.value"
-            [checked]="testType() === type.value"
-            (change)="onTestTypeChange(type.value)"
-          />
-          <span>{{ type.label }}</span>
-        </label>
-      }
-    </div>
-  </div>
 </div>
