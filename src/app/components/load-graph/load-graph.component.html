@@ -1,0 +1,16 @@
+<!-- src/app/components/load-graph/load-graph.component.html -->
+<div class="graph-container">
+  <canvas #graphCanvas class="load-graph"></canvas>
+  
+  @if (isEditMode()) {
+    <div class="graph-hint">
+      <span class="hint-icon">💡</span>
+      <span>Click to add points • Drag to move • Right-click to delete</span>
+    </div>
+  } @else {
+    <div class="graph-hint preset-hint">
+      <span class="hint-icon">ℹ️</span>
+      <span>Click "Edit Curve" button to manually adjust the load profile</span>
+    </div>
+  }
+</div>

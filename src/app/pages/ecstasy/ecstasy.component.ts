@@ -1,345 +1,151 @@
+// src/app/pages/ecstasy/ecstasy.component.ts
+import { Component, signal, computed, effect, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+
+import { LoadTestFormComponent } from '../../components/load-test-form/load-test-form.component';
+import { LoadGraphComponent } from '../../components/load-graph/load-graph.component';
+import { LoadParametersComponent } from '../../components/load-parameters/load-parameters.component';
+import { AdvancedOptionsComponent } from '../../components/advanced-options/advanced-options.component';
+import { ExecutionStatusComponent } from '../../components/execution-status/execution-status.component';
+
+import { LoadTestStateService } from '../../services/load-test-state.service';
+import { LoadTestApiService } from '../../services/load-test-api.service';
+import { ControlPointsCalculatorService } from '../../services/control-points-calculator.service';
+
 import {
-  Component,
-  signal,
-  computed,
-  ElementRef,
-  ViewChild,
-  AfterViewInit,
-  effect,
-  OnDestroy,
-} from "@angular/core";
-import { CommonModule } from "@angular/common";
-import { FormsModule } from "@angular/forms";
-import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
-import { HttpClient } from '@angular/common/http';
-export type TestType = "load" | "stress" | "spike" | "soak";
-export type ScenarioType =
-  | "fixed-vus"
-  | "ramping-vus"
-  | "constant-arrival-rate";
-export type DurationUnit = "minutes" | "hours";
-
-export interface ControlPoint {
-  time: number;
-  vus: number;
-}
-
-export interface TestTypeState {
-  virtualUsers: number;
-  duration: number;
-  durationUnit: DurationUnit;
-  scenarioType: ScenarioType;
-  rampUpDuration: number;
-  rampDownDuration: number;
-  controlPoints: ControlPoint[];
-  isCustomMode: boolean;
-  hasBeenEdited: boolean; // דגל שמסמן אם הגרף אי פעם נערך ידנית
-}
-
-export interface LoadTestConfiguration {
-  component: string;
-  targetUrl: string;
-  testType: TestType;
-  virtualUsers: number;
-  duration: number;
-  durationUnit: DurationUnit;
-  scenarioType: ScenarioType;
-  rampUpDuration?: number;
-  rampDownDuration?: number;
-  headers: { key: string; value: string }[];
-  thresholds: { metric: string; condition: string }[];
-  environmentVariables: { key: string; value: string }[];
-  controlPoints: ControlPoint[];
-}
-
-export interface ExecutionStatus {
-  status: "idle" | "running" | "completed" | "failed";
-  startTime?: Date;
-  elapsedTime?: number;
-  currentVUs?: number;
-  progress?: number;
-  testId?: string;
-}
+  TestType,
+  ScenarioType,
+  DurationUnit,
+  ControlPoint,
+  LoadTestConfiguration,
+  ExecutionStatus
+} from '../../models/load-test.models';
 
 @Component({
-  selector: "app-ecstasy",
+  selector: 'app-ecstasy',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: "./ecstasy.component.html",
-  styleUrls: ["./ecstasy.component.scss"],
+  imports: [
+    CommonModule,
+    LoadTestFormComponent,
+    LoadGraphComponent,
+    LoadParametersComponent,
+    AdvancedOptionsComponent,
+    ExecutionStatusComponent
+  ],
+  templateUrl: './ecstasy.component.html',
+  styleUrls: ['./ecstasy.component.scss']
 })
-export class EcstasyComponent implements AfterViewInit, OnDestroy {
-  @ViewChild("graphCanvas") canvasRef!: ElementRef<HTMLCanvasElement>;
+export class EcstasyComponent implements OnDestroy {
+  // Form state
+  readonly selectedComponent = signal<string>('');
+  readonly targetUrl = signal<string>('');
+  readonly testType = signal<TestType>('load');
 
-  readonly selectedComponent = signal<string>("");
-  readonly components = signal<string[]>([
-    "API Gateway",
-    "User Service",
-    "Payment Service",
-    "Notification Service",
-    "Analytics Service",
-  ]);
-
-  readonly targetUrl = signal<string>("");
-  readonly targetUrlError = signal<string>("");
-
-  readonly isCustomMode = signal<boolean>(false);
-  readonly editMode = this.isCustomMode;
-  readonly testType = signal<TestType>("load");
-  readonly virtualUsers = signal<number>(10);
-  readonly duration = signal<number>(5);
-  readonly durationUnit = signal<DurationUnit>("minutes");
-  readonly scenarioType = signal<ScenarioType>("fixed-vus");
-  readonly rampUpDuration = signal<number>(0);
-  readonly rampDownDuration = signal<number>(0);
-
+  // Graph state
   readonly controlPoints = signal<ControlPoint[]>([
     { time: 0, vus: 0 },
     { time: 5, vus: 10 },
   ]);
+  readonly isCustomMode = signal<boolean>(false);
   readonly showK6Phases = signal<boolean>(false);
-  readonly draggedPointIndex = signal<number | null>(null);
-  readonly hoveredPointIndex = signal<number | null>(null);
-  readonly hoverPosition = signal<{ x: number; y: number } | null>(null);
-  readonly previewPoint = signal<ControlPoint | null>(null);
 
-  private wasDragging = false;
+  // Load parameters
+  readonly virtualUsers = signal<number>(10);
+  readonly duration = signal<number>(5);
+  readonly durationUnit = signal<DurationUnit>('minutes');
+  readonly scenarioType = signal<ScenarioType>('fixed-vus');
+  readonly rampUpDuration = signal<number>(0);
+  readonly rampDownDuration = signal<number>(0);
 
-  readonly showAdvancedOptions = signal<boolean>(false);
-  readonly headers = signal<{ key: string; value: string }[]>([
-    { key: "", value: "" },
-  ]);
-  readonly thresholds = signal<{ metric: string; condition: string }[]>([
-    { metric: "", condition: "" },
-  ]);
-  readonly environmentVariables = signal<{ key: string; value: string }[]>([
-    { key: "", value: "" },
-  ]);
-  private isNormalizing = false;
-  readonly executionStatus = signal<ExecutionStatus>({ status: "idle" });
+  // Advanced options
+  readonly headers = signal<{ key: string; value: string }[]>([{ key: '', value: '' }]);
+  readonly thresholds = signal<{ metric: string; condition: string }[]>([{ metric: '', condition: '' }]);
+  readonly environmentVariables = signal<{ key: string; value: string }[]>([{ key: '', value: '' }]);
+
+  // Execution state
+  readonly executionStatus = signal<ExecutionStatus>({ status: 'idle' });
   readonly showResultsIframe = signal<boolean>(false);
   private executionInterval?: number;
 
-  private ctx: CanvasRenderingContext2D | null = null;
-  private readonly padding = { top: 40, right: 40, bottom: 60, left: 60 };
-  private readonly pointRadius = 7;
-  private readonly hitRadius = 20;
-
-readonly isUrlValidComputed = computed(() => {
-  const url = this.targetUrl().trim();
-  if (!url) return true; // ריק = תקין
-  
-  try {
-    const urlObj = new URL(url);
-    return urlObj.protocol === "http:" || urlObj.protocol === "https:";
-  } catch {
-    return false;
-  }
-});
-readonly isConfigurationValid = computed(() => {
-  const hasComponent = this.selectedComponent() !== "";
-  const hasUrl = this.targetUrl().trim() !== "";
-  const urlValid = this.isUrlValidComputed(); // שימוש ב-computed במקום בפונקציה
-  const hasVUs = this.virtualUsers() > 0;
-  const hasDuration = this.duration() > 0;
-  
-  return hasComponent && hasUrl && urlValid && hasVUs && hasDuration;
-});
-
-  readonly canRunTest = computed(() => {
-    return (
-      this.isConfigurationValid() && this.executionStatus().status !== "running"
-    );
-  });
-
+  // Computed values
   readonly maxVUs = computed(() => {
     const points = this.controlPoints();
-    return Math.max(this.virtualUsers(), ...points.map((p) => p.vus), 1);
+    return Math.max(this.virtualUsers(), ...points.map(p => p.vus), 1);
   });
 
   readonly totalDurationInMinutes = computed(() => {
     const duration = this.duration();
     const unit = this.durationUnit();
-    return unit === "hours" ? duration * 60 : duration;
+    return unit === 'hours' ? duration * 60 : duration;
   });
 
-  readonly testTypes: { value: TestType; label: string }[] = [
-    { value: "load", label: "Load Test" },
-    { value: "stress", label: "Stress Test" },
-    { value: "spike", label: "Spike Test" },
-    { value: "soak", label: "Soak Test" },
-  ];
+  readonly isConfigurationValid = computed(() => {
+    const hasComponent = this.selectedComponent() !== '';
+    const hasUrl = this.targetUrl().trim() !== '';
+    const hasVUs = this.virtualUsers() > 0;
+    const hasDuration = this.duration() > 0;
+    
+    return hasComponent && hasUrl && hasVUs && hasDuration;
+  });
 
-  readonly scenarioTypes: { value: ScenarioType; label: string }[] = [
-    { value: "fixed-vus", label: "Fixed VUs" },
-    { value: "ramping-vus", label: "Ramping VUs" },
-    { value: "constant-arrival-rate", label: "Constant Arrival Rate" },
-  ];
+  readonly canRunTest = computed(() => {
+    return this.isConfigurationValid() && this.executionStatus().status !== 'running';
+  });
 
-  // מצב נפרד לכל test type
-  private testTypeStates: Record<TestType, TestTypeState> = {
-    load: {
-      virtualUsers: 50,
-      duration: 5,
-      durationUnit: "minutes",
-      scenarioType: "ramping-vus",
-      rampUpDuration: 1,
-      rampDownDuration: 0.5,
-      controlPoints: [
-        { time: 0, vus: 0 },
-        { time: 5, vus: 50 },
-      ],
-      isCustomMode: false,
-      hasBeenEdited: false,
-    },
-    stress: {
-      virtualUsers: 200,
-      duration: 10,
-      durationUnit: "minutes",
-      scenarioType: "ramping-vus",
-      rampUpDuration: 3,
-      rampDownDuration: 1,
-      controlPoints: [
-        { time: 0, vus: 0 },
-        { time: 10, vus: 200 },
-      ],
-      isCustomMode: false,
-      hasBeenEdited: false,
-    },
-    spike: {
-      virtualUsers: 100,
-      duration: 1,
-      durationUnit: "minutes",
-      scenarioType: "ramping-vus",
-      rampUpDuration: 0.08,
-      rampDownDuration: 0.08,
-      controlPoints: [
-        { time: 0, vus: 0 },
-        { time: 1, vus: 100 },
-      ],
-      isCustomMode: false,
-      hasBeenEdited: false,
-    },
-    soak: {
-      virtualUsers: 20,
-      duration: 1,
-      durationUnit: "hours",
-      scenarioType: "fixed-vus",
-      rampUpDuration: 0,
-      rampDownDuration: 0,
-      controlPoints: [
-        // הנקודות צריכות להיות בדקות כי totalDurationInMinutes מחזיר 60
-        { time: 0, vus: 0 },
-        { time: 6, vus: 20 }, // 10% של 60 דקות = 6 דקות
-        { time: 54, vus: 20 }, // 90% של 60 דקות = 54 דקות
-        { time: 60, vus: 0 }, // 100% של 60 דקות = 60 דקות
-      ],
-      isCustomMode: false,
-      hasBeenEdited: false,
-    },
-  };
+  constructor(
+    private stateService: LoadTestStateService,
+    private apiService: LoadTestApiService,
+    private calculatorService: ControlPointsCalculatorService,
+    private sanitizer: DomSanitizer
+  ) {
+    this.setupEffects();
+  }
 
-  constructor( private sanitizer: DomSanitizer,
-  private http: HttpClient) {
-    // Effect לשינוי test type - טעינת מצב שמור
+  private setupEffects(): void {
+    // Load state when test type changes
     effect(() => {
       const type = this.testType();
       this.loadTestTypeState(type);
     });
+
+    // Save state changes
+    effect(() => {
+      const type = this.testType();
+      this.stateService.updateState(type, {
+        virtualUsers: this.virtualUsers(),
+        duration: this.duration(),
+        durationUnit: this.durationUnit(),
+        scenarioType: this.scenarioType(),
+        rampUpDuration: this.rampUpDuration(),
+        rampDownDuration: this.rampDownDuration(),
+        controlPoints: [...this.controlPoints()],
+        isCustomMode: this.isCustomMode(),
+        hasBeenEdited: this.stateService.hasBeenEdited(type)
+      });
+    });
+
+    // Adjust control points when duration changes
     effect(() => {
       this.adjustControlPointsForNewDuration();
     });
 
-    // Effect לשמירת שינויים בזמן אמת
-    effect(() => {
-      const type = this.testType();
-      const state = this.testTypeStates[type];
-
-      state.virtualUsers = this.virtualUsers();
-      state.duration = this.duration();
-      state.durationUnit = this.durationUnit();
-      state.scenarioType = this.scenarioType();
-      state.rampUpDuration = this.rampUpDuration();
-      state.rampDownDuration = this.rampDownDuration();
-      state.controlPoints = [...this.controlPoints()];
-      state.isCustomMode = this.isCustomMode();
-    });
-    effect(() => {
-      const points = this.controlPoints();
-      const duration = this.totalDurationInMinutes();
-
-      if (!points.length) return;
-
-      const last = points[points.length - 1];
-
-      const isLocked = Math.abs(last.time - duration) < 0.001;
-
-      console.groupCollapsed(
-        `%c📍 controlPoints changed`,
-        `color: ${isLocked ? "lightgreen" : "red"}; font-weight: bold`
-      );
-
-      console.log("Duration (minutes):", duration);
-      console.log("Last point time:", last.time);
-      console.log("Locked to end:", isLocked);
-      console.log("All points:", JSON.stringify(points));
-      console.log("Edited mode:", this.isCustomMode());
-      console.log(
-        "Has been edited flag:",
-        this.testTypeStates[this.testType()].hasBeenEdited
-      );
-
-      if (!isLocked) {
-        console.warn("❌ LAST POINT IS NOT AT END");
-        console.trace("Call stack");
-      }
-
-      console.groupEnd();
-    });
-
-    // Effect לעדכון גרף - רק אם מעולם לא היה במצב עריכה
+    // Update graph from config if not edited
     effect(() => {
       const vus = this.virtualUsers();
       const duration = this.totalDurationInMinutes();
       const scenario = this.scenarioType();
       const isCustom = this.isCustomMode();
       const type = this.testType();
-      const state = this.testTypeStates[type];
 
-      // עדכן גרף רק אם הגרף מעולם לא נערך ידנית
-      if (
-        !isCustom &&
-        this.draggedPointIndex() === null &&
-        !state.hasBeenEdited
-      ) {
+      if (!isCustom && !this.stateService.hasBeenEdited(type)) {
         this.updateControlPointsFromConfig();
       }
     });
-
-    // Effect לציור הגרף
-    effect(() => {
-      this.controlPoints();
-      this.hoveredPointIndex();
-      this.draggedPointIndex();
-      this.showK6Phases();
-      this.previewPoint();
-      this.hoverPosition();
-      this.drawGraph();
-    });
-  }
-
-  ngAfterViewInit(): void {
-    setTimeout(() => {
-      this.initializeCanvas();
-      this.setupCanvasListeners();
-      setTimeout(() => {
-        this.drawGraph();
-      }, 100);
-    }, 0);
   }
 
   private loadTestTypeState(type: TestType): void {
-    const state = this.testTypeStates[type];
+    const state = this.stateService.getState(type);
 
     this.virtualUsers.set(state.virtualUsers);
     this.duration.set(state.duration);
@@ -350,1144 +156,151 @@ readonly isConfigurationValid = computed(() => {
     this.controlPoints.set([...state.controlPoints]);
     this.isCustomMode.set(state.isCustomMode);
   }
-  private normalizeControlPointsToDuration(source: string): void {
-    if (this.isNormalizing) return;
-    this.isNormalizing = true;
-
-    const duration = this.totalDurationInMinutes();
-    const points = [...this.controlPoints()];
-    if (!points.length) {
-      this.isNormalizing = false;
-      return;
-    }
-
-    const filtered = points.filter(
-      (p, i) => i === points.length - 1 || p.time <= duration
-    );
-
-    const lastIdx = filtered.length - 1;
-
-    filtered[lastIdx] = {
-      ...filtered[lastIdx],
-      time: duration,
-    };
-
-    this.controlPoints.set(filtered);
-
-    this.isNormalizing = false;
-  }
-
-runTest(): void {
-  // if (!this.canRunTest()) return;
-
-  const payload: LoadTestConfiguration = {
-    component: this.selectedComponent(),
-    targetUrl: this.targetUrl(),
-    testType: this.testType(),
-    virtualUsers: this.virtualUsers(),
-    duration: this.duration(),
-    durationUnit: this.durationUnit(),
-    scenarioType: this.scenarioType(),
-    rampUpDuration: this.rampUpDuration(),
-    rampDownDuration: this.rampDownDuration(),
-    headers: this.headers(),
-    thresholds: this.thresholds(),
-    environmentVariables: this.environmentVariables(),
-    controlPoints: this.controlPoints(),
-  };
-
-  console.log('📤 POST /run load test', payload);
-
-  this.executionStatus.set({
-    status: 'running',
-    startTime: new Date(),
-  });
-
-  this.http
-    .post('http://localhost:8080/api/load-tests/run', payload)
-    .subscribe({
-      next: (res: any) => {
-        console.log('✅ Test started', res);
-        this.executionStatus.update((s) => ({
-          ...s,
-          status: 'running',
-          testId: res?.testId,
-        }));
-      },
-      error: (err) => {
-        console.error('❌ Failed to start test', err);
-        this.executionStatus.set({ status: 'failed' });
-      },
-    });
-}
-
-  private initializeCanvas(): void {
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    const rect = parent.getBoundingClientRect();
-    const cssWidth = rect.width || 800;
-    const cssHeight = 400;
-
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
-
-    canvas.width = Math.round(cssWidth * dpr);
-    canvas.height = Math.round(cssHeight * dpr);
-
-    this.ctx = canvas.getContext("2d");
-    if (!this.ctx) return;
-
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.ctx.imageSmoothingEnabled = true;
-    this.ctx.imageSmoothingQuality = "high";
-  }
-
-  toggleEditMode(): void {
-    this.isCustomMode.update((v) => !v);
-  }
-
-  private setupCanvasListeners(): void {
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
-    canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
-    canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));
-    canvas.addEventListener("mouseleave", this.handleMouseLeave.bind(this));
-    canvas.addEventListener("click", this.handleClick.bind(this));
-    canvas.addEventListener("contextmenu", this.handleRightClick.bind(this));
-  }
-
-  private handleMouseMove(e: MouseEvent): void {
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    this.hoverPosition.set({ x, y });
-
-    const draggedIdx = this.draggedPointIndex();
-    const isCustomMode = this.isCustomMode();
-
-    if (draggedIdx !== null && isCustomMode) {
-      this.wasDragging = true;
-      this.updatePointPosition(draggedIdx, x, y);
-      canvas.style.cursor = "grabbing";
-      return;
-    }
-
-    const hoveredIdx = this.findPointAtPosition(x, y);
-    this.hoveredPointIndex.set(hoveredIdx);
-
-    if (hoveredIdx !== null && isCustomMode) {
-      canvas.style.cursor = "grab";
-      this.previewPoint.set(null);
-    } else if (isCustomMode) {
-      canvas.style.cursor = "crosshair";
-      this.previewPoint.set(this.getPreviewPoint(x, y));
-    } else {
-      canvas.style.cursor = "default";
-      this.previewPoint.set(null);
-    }
-  }
-
-  private handleMouseDown(e: MouseEvent): void {
-    if (!this.isCustomMode()) return;
-
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const pointIdx = this.findPointAtPosition(x, y);
-    if (pointIdx !== null) {
-      this.draggedPointIndex.set(pointIdx);
-      this.wasDragging = false;
-      canvas.style.cursor = "grabbing";
-      this.previewPoint.set(null);
-    }
-  }
-
-  private handleMouseUp(): void {
-    const canvas = this.canvasRef?.nativeElement;
-    if (canvas) {
-      const hoveredIdx = this.hoveredPointIndex();
-      canvas.style.cursor = hoveredIdx !== null ? "grab" : "crosshair";
-    }
-
-    this.draggedPointIndex.set(null);
-
-    setTimeout(() => {
-      this.wasDragging = false;
-    }, 0);
-  }
-
-  private handleMouseLeave(): void {
-    this.hoveredPointIndex.set(null);
-    this.draggedPointIndex.set(null);
-    this.previewPoint.set(null);
-    this.hoverPosition.set(null);
-  }
-
-  private handleClick(e: MouseEvent): void {
-    if (!this.isCustomMode()) return;
-
-    if (this.wasDragging) {
-      return;
-    }
-
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const pointIdx = this.findPointAtPosition(x, y);
-    if (pointIdx !== null) return;
-
-    this.addPointAtPosition(x, y);
-  }
-
-  private handleRightClick(e: MouseEvent): void {
-    e.preventDefault();
-
-    if (!this.isCustomMode()) return;
-
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const pointIdx = this.findPointAtPosition(x, y);
-    if (pointIdx !== null) {
-      this.deleteControlPoint(pointIdx);
-    }
-  }
-
-  private findPointAtPosition(x: number, y: number): number | null {
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return null;
-
-    const points = this.controlPoints();
-    const chartWidth = canvas.width - this.padding.left - this.padding.right;
-    const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
-    const maxVUs = this.maxVUs();
-    const duration = this.totalDurationInMinutes();
-
-    let closestIdx: number | null = null;
-    let closestDistance = this.hitRadius;
-
-    for (let i = 0; i < points.length; i++) {
-      const timeRatio = points[i].time / duration;
-      const vusRatio = points[i].vus / maxVUs;
-
-      const px = this.padding.left + timeRatio * chartWidth;
-      const py = this.padding.top + chartHeight - vusRatio * chartHeight;
-
-      const distance = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
-
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIdx = i;
-      }
-    }
-
-    return closestIdx;
-  }
-
-  private getPreviewPoint(x: number, y: number): ControlPoint | null {
-    if (!this.isCustomMode()) return null;
-
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return null;
-
-    const chartWidth = canvas.width - this.padding.left - this.padding.right;
-    const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
-
-    if (
-      x < this.padding.left ||
-      x > this.padding.left + chartWidth ||
-      y < this.padding.top ||
-      y > this.padding.top + chartHeight
-    ) {
-      return null;
-    }
-
-    const maxVUs = this.maxVUs();
-    const duration = this.totalDurationInMinutes();
-
-    let newTime = Math.max(
-      0,
-      Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
-    );
-    let newVUs = Math.max(
-      0,
-      Math.min(
-        maxVUs,
-        ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
-      )
-    );
-
-    // Round to reasonable intervals
-    const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
-    newTime = Math.round(newTime / timeStep) * timeStep;
-    newVUs = Math.round(newVUs);
-
-    return { time: newTime, vus: newVUs };
-  }
-
-  private updatePointPosition(index: number, x: number, y: number): void {
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const chartWidth = canvas.width - this.padding.left - this.padding.right;
-    const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
-    const maxVUs = this.maxVUs();
-    const duration = this.totalDurationInMinutes();
-    const points = [...this.controlPoints()];
-
-    let newTime = Math.max(
-      0,
-      Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
-    );
-    let newVUs = Math.max(
-      0,
-      Math.min(
-        maxVUs,
-        ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
-      )
-    );
-
-    const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
-    newTime = Math.round(newTime / timeStep) * timeStep;
-    newVUs = Math.round(newVUs);
-
-    if (index === 0) newTime = 0;
-    if (index === points.length - 1) newTime = duration;
-    if (index > 0 && index < points.length - 1) {
-      const minGap = timeStep;
-      if (newTime <= points[index - 1].time)
-        newTime = points[index - 1].time + minGap;
-      if (newTime >= points[index + 1].time)
-        newTime = points[index + 1].time - minGap;
-    }
-
-    points[index] = { time: newTime, vus: newVUs };
-    this.controlPoints.set(points);
-
-    // סימון שהגרף נערך
-    const type = this.testType();
-    this.testTypeStates[type].hasBeenEdited = true;
-  }
-
-  private addPointAtPosition(x: number, y: number): void {
-    if (!this.isCustomMode()) return;
-
-    const canvas = this.canvasRef?.nativeElement;
-    if (!canvas) return;
-
-    const chartWidth = canvas.width - this.padding.left - this.padding.right;
-    const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
-    const maxVUs = this.maxVUs();
-    const duration = this.totalDurationInMinutes();
-
-    const timeStep = duration > 60 ? 5 : duration > 10 ? 1 : 0.2;
-
-    let newTime =
-      Math.round(
-        Math.max(
-          0,
-          Math.min(duration, ((x - this.padding.left) / chartWidth) * duration)
-        ) / timeStep
-      ) * timeStep;
-
-    let newVUs = Math.round(
-      Math.max(
-        0,
-        Math.min(
-          maxVUs,
-          ((this.padding.top + chartHeight - y) / chartHeight) * maxVUs
-        )
-      )
-    );
-
-    const points = [...this.controlPoints()];
-    let insertIdx = points.findIndex((p) => p.time > newTime);
-    if (insertIdx === -1) insertIdx = points.length;
-
-    if (
-      (insertIdx > 0 && points[insertIdx - 1].time === newTime) ||
-      (insertIdx < points.length && points[insertIdx].time === newTime)
-    )
-      return;
-
-    points.splice(insertIdx, 0, { time: newTime, vus: newVUs });
-    this.controlPoints.set(points);
-
-    // סימון שהגרף נערך
-    const type = this.testType();
-    this.testTypeStates[type].hasBeenEdited = true;
-  }
 
   private updateControlPointsFromConfig(): void {
-    const scenario = this.scenarioType();
-    const vus = this.virtualUsers();
-    const duration = this.totalDurationInMinutes();
-    const rampUp = this.rampUpDuration();
-    const rampDown = this.rampDownDuration();
+    const newPoints = this.calculatorService.calculateControlPoints(
+      this.scenarioType(),
+      this.virtualUsers(),
+      this.totalDurationInMinutes(),
+      this.rampUpDuration(),
+      this.rampDownDuration()
+    );
 
-    console.log("📊 updateControlPointsFromConfig called");
-    console.log("  Duration:", duration);
-    console.log("  Scenario:", scenario);
-
-    let newPoints: ControlPoint[] = [];
-
-    if (scenario === "fixed-vus") {
-      const rampTime = Math.min(duration * 0.1, 1);
-      newPoints = [
-        { time: 0, vus: 0 },
-        { time: rampTime, vus: vus },
-        { time: duration - rampTime, vus: vus },
-        { time: duration, vus: 0 },
-      ];
-    } else if (scenario === "ramping-vus") {
-      const effectiveRampUp = rampUp || duration * 0.2;
-      const effectiveRampDown = rampDown || duration * 0.1;
-      const plateauDuration = duration - effectiveRampUp - effectiveRampDown;
-
-      if (plateauDuration > 0) {
-        newPoints = [
-          { time: 0, vus: 0 },
-          { time: effectiveRampUp, vus: vus },
-          { time: effectiveRampUp + plateauDuration, vus: vus },
-          { time: duration, vus: 0 },
-        ];
-      } else {
-        newPoints = [
-          { time: 0, vus: 0 },
-          { time: duration / 2, vus: vus },
-          { time: duration, vus: 0 },
-        ];
-      }
-    } else {
-      newPoints = [
-        { time: 0, vus: vus },
-        { time: duration, vus: vus },
-      ];
-    }
-
-    console.log("  New Points:", JSON.stringify(newPoints));
     this.controlPoints.set(newPoints);
   }
 
-  // פונקציה חדשה: מתאימה נקודות קיימות לduration חדש
   private adjustControlPointsForNewDuration(): void {
     const currentPoints = this.controlPoints();
     if (currentPoints.length === 0) return;
 
     const newDuration = this.totalDurationInMinutes();
-    const oldDuration = currentPoints[currentPoints.length - 1].time;
-
-    console.log("=== adjustControlPointsForNewDuration ===");
-    console.log("Old Duration (from last point):", oldDuration);
-    console.log("New Duration:", newDuration);
-    console.log("Current Points:", JSON.stringify(currentPoints));
-
-    // אם ה-duration לא השתנה, אין צורך להתאים
-    if (Math.abs(oldDuration - newDuration) < 0.01) {
-      console.log("Duration unchanged, skipping adjustment");
-      return;
-    }
-
-    // חשב יחס התאמה
-    const ratio = newDuration / oldDuration;
-    console.log("Adjustment Ratio:", ratio);
-
-    // התאם את כל הנקודות פרופורציונלית
-    const adjustedPoints = currentPoints.map((point, index) => {
-      // הנקודה הראשונה תמיד ב-0
-      if (index === 0) {
-        return { ...point, time: 0 };
-      }
-      // הנקודה האחרונה תמיד בסוף הגרף
-      if (index === currentPoints.length - 1) {
-        console.log(`Last point adjusted: ${point.time} → ${newDuration}`);
-        return { ...point, time: newDuration };
-      }
-      // שאר הנקודות - התאם פרופורציונלית
-      const newTime = point.time * ratio;
-      console.log(`Point ${index} adjusted: ${point.time} → ${newTime}`);
-      return {
-        ...point,
-        time: newTime,
-      };
-    });
-
-    console.log("Adjusted Points:", JSON.stringify(adjustedPoints));
-    this.controlPoints.set(adjustedPoints);
-
-    // עדכן גם ב-state השמור
-    const type = this.testType();
-    this.testTypeStates[type].controlPoints = [...adjustedPoints];
-    console.log("=== adjustControlPointsForNewDuration END ===");
-  }
-
-  private drawGraph(): void {
-    if (!this.ctx || !this.canvasRef?.nativeElement) {
-      return;
-    }
-
-    const canvas = this.canvasRef.nativeElement;
-    const ctx = this.ctx;
-    const points = this.controlPoints();
-
-    if (points.length === 0) {
-      return;
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const chartWidth = canvas.width - this.padding.left - this.padding.right;
-    const chartHeight = canvas.height - this.padding.top - this.padding.bottom;
-    const maxVUs = this.maxVUs();
-    const duration = this.totalDurationInMinutes();
-
-    ctx.fillStyle = "rgba(30, 30, 35, 0.4)";
-    ctx.fillRect(this.padding.left, this.padding.top, chartWidth, chartHeight);
-
-    this.drawGrid(ctx, chartWidth, chartHeight, maxVUs, duration);
-
-    if (this.showK6Phases()) {
-      this.drawK6Phases(ctx, chartWidth, chartHeight, points, duration);
-    }
-
-    this.drawCurve(ctx, chartWidth, chartHeight, points, maxVUs, duration);
-    this.drawAxes(ctx, chartWidth, chartHeight, maxVUs, duration);
-
-    const previewPt = this.previewPoint();
-    if (previewPt && this.hoveredPointIndex() === null) {
-      this.drawPreviewPoint(
-        ctx,
-        previewPt,
-        chartWidth,
-        chartHeight,
-        maxVUs,
-        duration
-      );
-    }
-
-    this.drawControlPoints(
-      ctx,
-      chartWidth,
-      chartHeight,
-      points,
-      maxVUs,
-      duration
+    const adjustedPoints = this.calculatorService.adjustPointsForNewDuration(
+      currentPoints,
+      newDuration
     );
 
-    const hoveredIdx = this.hoveredPointIndex();
-    if (hoveredIdx !== null) {
-      this.drawTooltip(
-        ctx,
-        points[hoveredIdx],
-        chartWidth,
-        chartHeight,
-        maxVUs,
-        duration
-      );
-    } else if (previewPt) {
-      this.drawTooltip(
-        ctx,
-        previewPt,
-        chartWidth,
-        chartHeight,
-        maxVUs,
-        duration,
-        true
-      );
+    if (JSON.stringify(adjustedPoints) !== JSON.stringify(currentPoints)) {
+      this.controlPoints.set(adjustedPoints);
     }
   }
 
-  private drawPreviewPoint(
-    ctx: CanvasRenderingContext2D,
-    point: ControlPoint,
-    width: number,
-    height: number,
-    maxVUs: number,
-    duration: number
-  ): void {
-    const x = this.padding.left + (point.time / duration) * width;
-    const y = this.padding.top + height - (point.vus / maxVUs) * height;
-
-    ctx.beginPath();
-    ctx.arc(x, y, this.pointRadius + 2, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(100, 200, 255, 0.3)";
-    ctx.fill();
-    ctx.strokeStyle = "rgba(100, 200, 255, 0.6)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  private drawGrid(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    maxVUs: number,
-    duration: number
-  ): void {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
-    ctx.lineWidth = 1;
-
-    for (let i = 0; i <= 5; i++) {
-      const y = this.padding.top + height - (i / 5) * height;
-      ctx.beginPath();
-      ctx.moveTo(this.padding.left, y);
-      ctx.lineTo(this.padding.left + width, y);
-      ctx.stroke();
-    }
-
-    const timeSteps = duration > 60 ? 8 : 6;
-    for (let i = 0; i <= timeSteps; i++) {
-      const x = this.padding.left + (i / timeSteps) * width;
-      ctx.beginPath();
-      ctx.moveTo(x, this.padding.top);
-      ctx.lineTo(x, this.padding.top + height);
-      ctx.stroke();
-    }
-  }
-
-  private drawK6Phases(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    points: ControlPoint[],
-    duration: number
-  ): void {
-    if (points.length < 2) return;
-
-    const phases: {
-      start: number;
-      end: number;
-      type: string;
-      color: string;
-    }[] = [];
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const curr = points[i];
-      const next = points[i + 1];
-      const vusChange = next.vus - curr.vus;
-
-      let type: string;
-      let color: string;
-
-      if (Math.abs(vusChange) < 1) {
-        type = "steady";
-        color = "rgba(100, 200, 255, 0.1)";
-      } else if (vusChange > 0) {
-        type = "ramp-up";
-        color = "rgba(255, 200, 100, 0.1)";
-      } else {
-        type = "ramp-down";
-        color = "rgba(255, 100, 100, 0.1)";
-      }
-
-      phases.push({ start: curr.time, end: next.time, type, color });
-    }
-
-    phases.forEach((phase) => {
-      const startX = this.padding.left + (phase.start / duration) * width;
-      const endX = this.padding.left + (phase.end / duration) * width;
-
-      ctx.fillStyle = phase.color;
-      ctx.fillRect(startX, this.padding.top, endX - startX, height);
-
-      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-      ctx.font = "11px sans-serif";
-      ctx.textAlign = "center";
-      const labelX = (startX + endX) / 2;
-      ctx.fillText(phase.type.toUpperCase(), labelX, this.padding.top + 20);
-    });
-  }
-
-  private drawCurve(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    points: ControlPoint[],
-    maxVUs: number,
-    duration: number
-  ): void {
-    if (points.length < 2) return;
-
-    ctx.beginPath();
-    ctx.moveTo(this.padding.left, this.padding.top + height);
-
-    points.forEach((point) => {
-      const x = this.padding.left + (point.time / duration) * width;
-      const y = this.padding.top + height - (point.vus / maxVUs) * height;
-      ctx.lineTo(x, y);
-    });
-
-    ctx.lineTo(this.padding.left + width, this.padding.top + height);
-    ctx.closePath();
-
-    const gradient = ctx.createLinearGradient(
-      0,
-      this.padding.top,
-      0,
-      this.padding.top + height
-    );
-    gradient.addColorStop(0, "rgba(100, 200, 255, 0.3)");
-    gradient.addColorStop(1, "rgba(100, 200, 255, 0.05)");
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    ctx.beginPath();
-    points.forEach((point, i) => {
-      const x = this.padding.left + (point.time / duration) * width;
-      const y = this.padding.top + height - (point.vus / maxVUs) * height;
-
-      if (i === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-
-    ctx.strokeStyle = "rgba(100, 200, 255, 0.9)";
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
-  }
-
-  private drawAxes(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    maxVUs: number,
-    duration: number
-  ): void {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-    ctx.moveTo(this.padding.left, this.padding.top + height);
-    ctx.lineTo(this.padding.left + width, this.padding.top + height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(this.padding.left, this.padding.top);
-    ctx.lineTo(this.padding.left, this.padding.top + height);
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.font = "12px sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-
-    const vusStep = Math.max(1, Math.ceil(maxVUs / 5));
-    for (let i = 0; i <= 5; i++) {
-      const vus = i * vusStep;
-      const y = this.padding.top + height - (vus / maxVUs) * height;
-      ctx.fillText(vus.toString(), this.padding.left - 10, y);
-    }
-
-    ctx.save();
-    ctx.translate(20, this.padding.top + height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = "center";
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.fillText("Virtual Users (VUs)", 0, 0);
-    ctx.restore();
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.font = "12px sans-serif";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-
-    const timeSteps = duration > 60 ? 8 : 6;
-    for (let i = 0; i <= timeSteps; i++) {
-      const time = (i / timeSteps) * duration;
-      const x = this.padding.left + (i / timeSteps) * width;
-      const label = this.formatTimeLabel(time);
-      ctx.fillText(label, x, this.padding.top + height + 10);
-    }
-
-    ctx.textBaseline = "bottom";
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-    ctx.fillText(
-      "Time",
-      this.padding.left + width / 2,
-      this.canvasRef.nativeElement.height - 10
-    );
-  }
-
-  private drawControlPoints(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    points: ControlPoint[],
-    maxVUs: number,
-    duration: number
-  ): void {
-    const hoveredIdx = this.hoveredPointIndex();
-    const draggedIdx = this.draggedPointIndex();
-
-    points.forEach((point, i) => {
-      const x = this.padding.left + (point.time / duration) * width;
-      const y = this.padding.top + height - (point.vus / maxVUs) * height;
-
-      const isHovered = hoveredIdx === i;
-      const isDragged = draggedIdx === i;
-
-      ctx.beginPath();
-      const radius =
-        isHovered || isDragged ? this.pointRadius + 3 : this.pointRadius;
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-
-      if (isDragged) {
-        ctx.fillStyle = "rgba(255, 100, 100, 0.9)";
-        ctx.shadowColor = "rgba(255, 100, 100, 0.6)";
-        ctx.shadowBlur = 12;
-      } else if (isHovered) {
-        ctx.fillStyle = "rgba(255, 200, 100, 0.95)";
-        ctx.shadowColor = "rgba(255, 200, 100, 0.5)";
-        ctx.shadowBlur = 10;
-      } else {
-        ctx.fillStyle = "rgba(100, 200, 255, 0.9)";
-        ctx.shadowColor = "rgba(100, 200, 255, 0.3)";
-        ctx.shadowBlur = 6;
-      }
-
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      if (isHovered || isDragged) {
-        ctx.beginPath();
-        ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
-        ctx.strokeStyle = isHovered
-          ? "rgba(255, 200, 100, 0.4)"
-          : "rgba(255, 100, 100, 0.4)";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-    });
-  }
-
-  private drawTooltip(
-    ctx: CanvasRenderingContext2D,
-    point: ControlPoint,
-    width: number,
-    height: number,
-    maxVUs: number,
-    duration: number,
-    isPreview: boolean = false
-  ): void {
-    const x = this.padding.left + (point.time / duration) * width;
-    const y = this.padding.top + height - (point.vus / maxVUs) * height;
-
-    const timeLabel = this.formatTimeLabel(point.time);
-    const prefix = isPreview ? "Click to add: " : "";
-    const text = `${prefix}${timeLabel} | ${Math.round(point.vus)} VUs`;
-
-    ctx.font = "12px sans-serif";
-    const metrics = ctx.measureText(text);
-    const padding = 10;
-    const tooltipWidth = metrics.width + padding * 2;
-    const tooltipHeight = 26;
-
-    let tooltipX = x - tooltipWidth / 2;
-    let tooltipY = y - tooltipHeight - 18;
-
-    if (tooltipX < this.padding.left) tooltipX = this.padding.left;
-    if (tooltipX + tooltipWidth > this.padding.left + width) {
-      tooltipX = this.padding.left + width - tooltipWidth;
-    }
-    if (tooltipY < this.padding.top) tooltipY = y + 18;
-
-    ctx.fillStyle = isPreview
-      ? "rgba(40, 40, 50, 0.92)"
-      : "rgba(30, 30, 35, 0.96)";
-    ctx.strokeStyle = isPreview
-      ? "rgba(100, 200, 255, 0.5)"
-      : "rgba(100, 200, 255, 0.7)";
-    ctx.lineWidth = 1.5;
-    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 8);
-    ctx.fill();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = isPreview
-      ? "rgba(255, 255, 255, 0.75)"
-      : "rgba(255, 255, 255, 0.95)";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = isPreview ? "11px sans-serif" : "12px sans-serif";
-    ctx.fillText(
-      text,
-      tooltipX + tooltipWidth / 2,
-      tooltipY + tooltipHeight / 2
-    );
-  }
-
-  // Helper methods
-  private formatTimeLabel(timeInMinutes: number): string {
-    const unit = this.durationUnit();
-
-    if (unit === "hours") {
-      const hours = Math.floor(timeInMinutes / 60);
-      const minutes = Math.round(timeInMinutes % 60);
-      if (minutes === 0) return `${hours}h`;
-      return `${hours}h ${minutes}m`;
-    } else {
-      // minutes
-      return `${Math.round(timeInMinutes)}m`;
-    }
-  }
-
-  formatControlPointTime(time: number): string {
-    return this.formatTimeLabel(time);
-  }
-
-  // Public methods
-   isTargetUrlValid(): boolean {
-  const url = this.targetUrl().trim();
-  if (!url) {
-    this.targetUrlError.set("");
-    return true;
-  }
-
-  try {
-    const urlObj = new URL(url);
-    const isValid =
-      urlObj.protocol === "http:" || urlObj.protocol === "https:";
-    this.targetUrlError.set(
-      isValid ? "" : "URL must start with http:// or https://"
-    );
-    return isValid;
-  } catch {
-    this.targetUrlError.set("Invalid URL format");
-    return false;
-  }
-}
-onTargetUrlChange(value: string): void {
-  this.targetUrl.set(value);
-  this.isTargetUrlValid(); // עדכון ה-error message
-}
-
-  onComponentChange(component: string): void {
+  // Event handlers from form
+  onComponentChanged(component: string): void {
     this.selectedComponent.set(component);
   }
 
-  onTestTypeChange(testType: TestType): void {
+  onUrlChanged(url: string): void {
+    this.targetUrl.set(url);
+  }
+
+  onTestTypeChanged(testType: TestType): void {
     this.testType.set(testType);
   }
 
-  canShowHoursOption(): boolean {
-    return this.testType() === "soak";
+  // Event handlers from parameters
+  onVirtualUsersChanged(vus: number): void {
+    this.virtualUsers.set(vus);
   }
 
-  private convertDurationValue(
-    value: number,
-    from: DurationUnit,
-    to: DurationUnit
-  ): number {
-    console.log(`    convertDurationValue(${value}, ${from}, ${to})`);
-
-    if (from === to) {
-      console.log(`    → Same units, returning ${value}`);
-      return value;
-    }
-
-    if (from === "minutes" && to === "hours") {
-      const result = value / 60;
-      console.log(`    → minutes to hours: ${value} / 60 = ${result}`);
-      return result;
-    }
-
-    if (from === "hours" && to === "minutes") {
-      const result = value * 60;
-      console.log(`    → hours to minutes: ${value} * 60 = ${result}`);
-      return result;
-    }
-
-    console.log(`    → Unknown conversion, returning ${value}`);
-    return value;
+  onDurationChanged(duration: number): void {
+    this.duration.set(duration);
   }
 
-  onDurationUnitChange(newUnit: DurationUnit): void {
+  onDurationUnitChanged(unit: DurationUnit): void {
     const prevUnit = this.durationUnit();
+    if (prevUnit === unit) return;
 
-    console.log("=== onDurationUnitChange START ===");
-    console.log("Previous Unit:", prevUnit);
-    console.log("New Unit:", newUnit);
-
-    if (prevUnit === newUnit) {
-      console.log("Same unit, returning early");
-      return;
-    }
-
-    // המר את ה-duration
-    const oldDuration = this.duration();
-    const newDuration = this.convertDurationValue(
-      oldDuration,
-      prevUnit,
-      newUnit
+    this.durationUnit.set(unit);
+    const normalizedPoints = this.calculatorService.normalizeToEnd(
+      this.controlPoints(),
+      this.totalDurationInMinutes()
     );
-
-    console.log(
-      "Duration conversion:",
-      oldDuration,
-      prevUnit,
-      "→",
-      newDuration,
-      newUnit
-    );
-
-    // הנקודות בגרף תמיד נשארות בדקות!
-    // לא צריך להמיר אותן כי הן פנימית תמיד בדקות
-    console.log("Control points stay the same (always in minutes internally)");
-    this.durationUnit.set(newUnit);
-    this.duration.set(Math.max(0.1, +newDuration.toFixed(2)));
-
-    this.normalizeControlPointsToDuration("onDurationUnitChange");
-
-    console.log("Final state:");
-    console.log("  durationUnit:", this.durationUnit());
-    console.log("  duration:", this.duration());
-    console.log("  controlPoints:", JSON.stringify(this.controlPoints()));
-    console.log("  totalDurationInMinutes:", this.totalDurationInMinutes());
-    console.log("=== onDurationUnitChange END ===");
+    this.controlPoints.set(normalizedPoints);
   }
 
-  toggleAdvancedOptions(): void {
-    this.showAdvancedOptions.update((v) => !v);
+  onScenarioTypeChanged(type: ScenarioType): void {
+    this.scenarioType.set(type);
+  }
+
+  onRampUpChanged(value: number): void {
+    this.rampUpDuration.set(value);
+  }
+
+  onRampDownChanged(value: number): void {
+    this.rampDownDuration.set(value);
+  }
+
+  // UI toggles
+  toggleEditMode(): void {
+    this.isCustomMode.update(v => !v);
   }
 
   toggleK6Phases(): void {
-    this.showK6Phases.update((v) => !v);
+    this.showK6Phases.update(v => !v);
   }
 
-  deleteControlPoint(index: number): void {
-    if (!this.isCustomMode()) return;
-    if (this.controlPoints().length <= 2) return;
+  // Graph event handlers
+  onPointAdded(point: ControlPoint): void {
+    const points = [...this.controlPoints()];
+    let insertIdx = points.findIndex(p => p.time > point.time);
+    if (insertIdx === -1) insertIdx = points.length;
 
+    if (
+      (insertIdx > 0 && points[insertIdx - 1].time === point.time) ||
+      (insertIdx < points.length && points[insertIdx].time === point.time)
+    ) {
+      return;
+    }
+
+    points.splice(insertIdx, 0, point);
+    this.controlPoints.set(points);
+    this.stateService.markAsEdited(this.testType());
+  }
+
+  onPointUpdated(event: { index: number; point: ControlPoint }): void {
+    const points = [...this.controlPoints()];
+    points[event.index] = event.point;
+    this.controlPoints.set(points);
+    this.stateService.markAsEdited(this.testType());
+  }
+
+  onPointDeleted(index: number): void {
+    if (this.controlPoints().length <= 2) return;
+    
     const points = this.controlPoints().filter((_, i) => i !== index);
     this.controlPoints.set(points);
-
-    // סימון שהגרף נערך
-    const type = this.testType();
-    this.testTypeStates[type].hasBeenEdited = true;
+    this.stateService.markAsEdited(this.testType());
   }
 
-  addHeader(): void {
-    this.headers.update((headers) => [...headers, { key: "", value: "" }]);
+  // Advanced options handlers
+  onHeadersChanged(headers: { key: string; value: string }[]): void {
+    this.headers.set(headers);
   }
 
-  removeHeader(index: number): void {
-    this.headers.update((headers) => headers.filter((_, i) => i !== index));
+  onThresholdsChanged(thresholds: { metric: string; condition: string }[]): void {
+    this.thresholds.set(thresholds);
   }
 
-  addThreshold(): void {
-    this.thresholds.update((thresholds) => [
-      ...thresholds,
-      { metric: "", condition: "" },
-    ]);
+  onEnvVarsChanged(envVars: { key: string; value: string }[]): void {
+    this.environmentVariables.set(envVars);
   }
 
-  removeThreshold(index: number): void {
-    this.thresholds.update((thresholds) =>
-      thresholds.filter((_, i) => i !== index)
-    );
+  // Helper method for template
+  formatControlPointTime(time: number): string {
+    const unit = this.durationUnit();
+
+    if (unit === 'hours') {
+      const hours = Math.floor(time / 60);
+      const minutes = Math.round(time % 60);
+      if (minutes === 0) return `${hours}h`;
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${Math.round(time)}m`;
+    }
   }
 
-  addEnvironmentVariable(): void {
-    this.environmentVariables.update((envVars) => [
-      ...envVars,
-      { key: "", value: "" },
-    ]);
-  }
-
-  removeEnvironmentVariable(index: number): void {
-    this.environmentVariables.update((envVars) =>
-      envVars.filter((_, i) => i !== index)
-    );
-  }
-
-  updateHeaderKey(index: number, value: string): void {
-    this.headers.update((headers) => {
-      const updated = [...headers];
-      updated[index] = { ...updated[index], key: value };
-      return updated;
-    });
-  }
-
-  updateHeaderValue(index: number, value: string): void {
-    this.headers.update((headers) => {
-      const updated = [...headers];
-      updated[index] = { ...updated[index], value: value };
-      return updated;
-    });
-  }
-
-  updateThresholdMetric(index: number, value: string): void {
-    this.thresholds.update((thresholds) => {
-      const updated = [...thresholds];
-      updated[index] = { ...updated[index], metric: value };
-      return updated;
-    });
-  }
-
-  updateThresholdCondition(index: number, value: string): void {
-    this.thresholds.update((thresholds) => {
-      const updated = [...thresholds];
-      updated[index] = { ...updated[index], condition: value };
-      return updated;
-    });
-  }
-
-  updateEnvVarKey(index: number, value: string): void {
-    this.environmentVariables.update((envVars) => {
-      const updated = [...envVars];
-      updated[index] = { ...updated[index], key: value };
-      return updated;
-    });
-  }
-
-  updateEnvVarValue(index: number, value: string): void {
-    this.environmentVariables.update((envVars) => {
-      const updated = [...envVars];
-      updated[index] = { ...updated[index], value: value };
-      return updated;
-    });
-  }
-
-  runLoadTest(): void {
+  // Test execution
+  runTest(): void {
     if (!this.canRunTest()) return;
 
     const config: LoadTestConfiguration = {
@@ -1500,23 +313,35 @@ onTargetUrlChange(value: string): void {
       scenarioType: this.scenarioType(),
       rampUpDuration: this.rampUpDuration() || undefined,
       rampDownDuration: this.rampDownDuration() || undefined,
-      headers: this.headers().filter((h) => h.key && h.value),
-      thresholds: this.thresholds().filter((t) => t.metric && t.condition),
-      environmentVariables: this.environmentVariables().filter(
-        (e) => e.key && e.value
-      ),
+      headers: this.headers().filter(h => h.key && h.value),
+      thresholds: this.thresholds().filter(t => t.metric && t.condition),
+      environmentVariables: this.environmentVariables().filter(e => e.key && e.value),
       controlPoints: this.controlPoints(),
     };
 
     this.executionStatus.set({
-      status: "running",
+      status: 'running',
       startTime: new Date(),
-      elapsedTime: 0,
-      currentVUs: 0,
-      progress: 0,
-      testId: `test-${Date.now()}`,
     });
 
+    this.apiService.runLoadTest(config).subscribe({
+      next: (res: any) => {
+        console.log('✅ Test started', res);
+        this.executionStatus.update(s => ({
+          ...s,
+          status: 'running',
+          testId: res?.testId,
+        }));
+        this.startProgressTracking();
+      },
+      error: (err) => {
+        console.error('❌ Failed to start test', err);
+        this.executionStatus.set({ status: 'failed' });
+      },
+    });
+  }
+
+  private startProgressTracking(): void {
     let elapsed = 0;
     const totalDuration = this.totalDurationInMinutes();
 
@@ -1532,14 +357,13 @@ onTargetUrlChange(value: string): void {
           const segmentProgress =
             (elapsed - points[i].time) / (points[i + 1].time - points[i].time);
           currentVUs = Math.round(
-            points[i].vus +
-              (points[i + 1].vus - points[i].vus) * segmentProgress
+            points[i].vus + (points[i + 1].vus - points[i].vus) * segmentProgress
           );
           break;
         }
       }
 
-      this.executionStatus.update((status) => ({
+      this.executionStatus.update(status => ({
         ...status,
         elapsedTime: elapsed,
         currentVUs,
@@ -1552,110 +376,23 @@ onTargetUrlChange(value: string): void {
     }, 1000);
   }
 
-  completeTest(): void {
+  private completeTest(): void {
     if (this.executionInterval) {
       clearInterval(this.executionInterval);
       this.executionInterval = undefined;
     }
 
-    this.executionStatus.update((status) => ({
+    this.executionStatus.update(status => ({
       ...status,
-      status: "completed",
+      status: 'completed',
       progress: 100,
       currentVUs: this.virtualUsers(),
     }));
   }
 
-  resetConfiguration(): void {
-    this.selectedComponent.set("");
-    this.targetUrl.set("");
-    this.targetUrlError.set("");
-    this.testType.set("load");
-    this.headers.set([{ key: "", value: "" }]);
-    this.thresholds.set([{ metric: "", condition: "" }]);
-    this.environmentVariables.set([{ key: "", value: "" }]);
-    this.executionStatus.set({ status: "idle" });
-
-    // Reset all test type states to defaults
-    this.testTypeStates = {
-      load: {
-        virtualUsers: 50,
-        duration: 5,
-        durationUnit: "minutes",
-        scenarioType: "ramping-vus",
-        rampUpDuration: 1,
-        rampDownDuration: 0.5,
-        controlPoints: [
-          { time: 0, vus: 0 },
-          { time: 5, vus: 50 },
-        ],
-        isCustomMode: false,
-        hasBeenEdited: false,
-      },
-      stress: {
-        virtualUsers: 200,
-        duration: 10,
-        durationUnit: "minutes",
-        scenarioType: "ramping-vus",
-        rampUpDuration: 3,
-        rampDownDuration: 1,
-        controlPoints: [
-          { time: 0, vus: 0 },
-          { time: 10, vus: 200 },
-        ],
-        isCustomMode: false,
-        hasBeenEdited: false,
-      },
-      spike: {
-        virtualUsers: 100,
-        duration: 1,
-        durationUnit: "minutes",
-        scenarioType: "ramping-vus",
-        rampUpDuration: 0.08,
-        rampDownDuration: 0.08,
-        controlPoints: [
-          { time: 0, vus: 0 },
-          { time: 1, vus: 100 },
-        ],
-        isCustomMode: false,
-        hasBeenEdited: false,
-      },
-      soak: {
-        virtualUsers: 20,
-        duration: 1,
-        durationUnit: "hours",
-        scenarioType: "fixed-vus",
-        rampUpDuration: 0,
-        rampDownDuration: 0,
-        controlPoints: [
-          { time: 0, vus: 0 },
-          { time: 60, vus: 20 },
-        ],
-        isCustomMode: false,
-        hasBeenEdited: false,
-      },
-    };
-
-    this.loadTestTypeState("load");
-  }
-
-  saveAsPreset(): void {
-    console.log("Save as preset", {
-      testType: this.testType(),
-      controlPoints: this.controlPoints(),
-      config: {
-        virtualUsers: this.virtualUsers(),
-        duration: this.duration(),
-        durationUnit: this.durationUnit(),
-        scenarioType: this.scenarioType(),
-      },
-    });
-  }
-
   viewResults(): void {
     const testId = this.executionStatus().testId;
     if (testId) {
-      console.log("View results for:", testId);
       this.showResultsIframe.set(true);
     }
   }
@@ -1670,23 +407,29 @@ onTargetUrlChange(value: string): void {
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
-  getElapsedTimeFormatted(): string {
-    const elapsed = this.executionStatus().elapsedTime || 0;
-    const hours = Math.floor(elapsed / 60);
-    const minutes = elapsed % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
+  resetConfiguration(): void {
+    this.selectedComponent.set('');
+    this.targetUrl.set('');
+    this.testType.set('load');
+    this.headers.set([{ key: '', value: '' }]);
+    this.thresholds.set([{ metric: '', condition: '' }]);
+    this.environmentVariables.set([{ key: '', value: '' }]);
+    this.executionStatus.set({ status: 'idle' });
+    this.stateService.resetAll();
+    this.loadTestTypeState('load');
   }
 
-  getDurationInMinutes(): number {
-    return this.totalDurationInMinutes();
-  }
-
-  getProgressPercentage(): number {
-    return Math.round(this.executionStatus().progress || 0);
+  saveAsPreset(): void {
+    console.log('Save as preset', {
+      testType: this.testType(),
+      controlPoints: this.controlPoints(),
+      config: {
+        virtualUsers: this.virtualUsers(),
+        duration: this.duration(),
+        durationUnit: this.durationUnit(),
+        scenarioType: this.scenarioType(),
+      },
+    });
   }
 
   ngOnDestroy(): void {

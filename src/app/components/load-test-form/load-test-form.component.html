@@ -1,0 +1,52 @@
+<!-- src/app/components/load-test-form/load-test-form.component.html -->
+<div class="config-card">
+  <!-- Component Selection -->
+  <div class="input-group">
+    <label class="input-label">Component</label>
+    <select
+      class="config-select"
+      [value]="selectedComponent()"
+      (change)="onComponentChange($any($event.target).value)"
+    >
+      <option value="">Select component to test</option>
+      @for (component of components(); track component) {
+        <option [value]="component">{{ component }}</option>
+      }
+    </select>
+  </div>
+
+  <!-- Target URL -->
+  <div class="input-group">
+    <label class="input-label">Target URL</label>
+    <input
+      type="text"
+      class="config-input"
+      [class.error]="targetUrlError()"
+      placeholder="Enter Atlas environment URL..."
+      [value]="targetUrl()"
+      (input)="onTargetUrlChange($any($event.target).value)"
+    />
+    @if (targetUrlError()) {
+      <span class="error-message">{{ targetUrlError() }}</span>
+    }
+  </div>
+
+  <!-- Test Type -->
+  <div class="input-group">
+    <label class="input-label">Test Type (Preset)</label>
+    <div class="radio-group">
+      @for (type of testTypes; track type.value) {
+        <label class="radio-label">
+          <input
+            type="radio"
+            name="testType"
+            [value]="type.value"
+            [checked]="testType() === type.value"
+            (change)="onTestTypeChange(type.value)"
+          />
+          <span>{{ type.label }}</span>
+        </label>
+      }
+    </div>
+  </div>
+</div>

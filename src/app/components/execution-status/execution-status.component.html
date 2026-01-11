@@ -1,0 +1,65 @@
+<!-- src/app/components/execution-status/execution-status.component.html -->
+<div class="execution-status" [class]="statusClass()">
+  <div class="status-header">
+    <h3 class="status-title">
+      @switch (status().status) {
+        @case ('running') {
+          <span class="status-icon">⏳</span>
+          Running
+        }
+        @case ('completed') {
+          <span class="status-icon">✅</span>
+          Completed
+        }
+        @case ('failed') {
+          <span class="status-icon">❌</span>
+          Failed
+        }
+      }
+    </h3>
+    @if (status().startTime) {
+      <span class="start-time">
+        Started: {{ status().startTime | date : 'short' }}
+      </span>
+    }
+  </div>
+
+  @if (status().status === 'running') {
+    <div class="status-details">
+      <div class="status-item">
+        <span class="status-label">Elapsed Time:</span>
+        <span class="status-value">{{ elapsedTimeFormatted() }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Current VUs:</span>
+        <span class="status-value">{{ status().currentVUs || 0 }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Progress:</span>
+        <span class="status-value">{{ progressPercentage() }}%</span>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div
+        class="progress-fill"
+        [style.width.%]="status().progress || 0"
+      ></div>
+    </div>
+  }
+
+  @if (status().status === 'completed') {
+    <div class="status-details">
+      <div class="status-item">
+        <span class="status-label">Test ID:</span>
+        <span class="status-value">{{ status().testId }}</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Total Duration:</span>
+        <span class="status-value">{{ elapsedTimeFormatted() }}</span>
+      </div>
+    </div>
+    <button class="view-results-button" type="button" (click)="onViewResults()">
+      📊 View Results Dashboard
+    </button>
+  }
+</div>

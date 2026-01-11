@@ -1,0 +1,166 @@
+@import "../../../styles.scss";
+
+.config-card {
+  background: lighten($color-bg, 3%);
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: $color-primary;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+  margin-bottom: 20px;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: lighten($color-primary, 10%);
+  }
+
+  .toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    font-size: 12px;
+
+    &.open {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.advanced-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 20px;
+  border-top: 1px solid $color-border;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $color-text;
+}
+
+.key-value-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.key-value-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .key-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .value-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .remove-btn {
+    background: rgba($color-error-bg, 0.2);
+    border: 1px solid rgba($color-error-bg, 0.4);
+    color: $color-error-bg;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    min-width: 40px;
+
+    &:hover:not(:disabled) {
+      background: rgba($color-error-bg, 0.3);
+      border-color: rgba($color-error-bg, 0.6);
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.config-input {
+  padding: 12px 16px;
+  background: $color-card-bg;
+  border: 2px solid $color-border;
+  border-radius: 8px;
+  color: $color-text;
+  font-size: 16px;
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: $color-secondary;
+    box-shadow: 0 0 0 3px rgba($color-secondary, 0.2);
+  }
+
+  &::placeholder {
+    color: darken($color-text, 20%);
+  }
+}
+
+.add-btn {
+  background: rgba($color-secondary, 0.1);
+  border: 1px dashed rgba($color-secondary, 0.4);
+  color: $color-secondary;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+
+  &:hover {
+    background: rgba($color-secondary, 0.2);
+    border-color: rgba($color-secondary, 0.6);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 768px) {
+  .key-value-row {
+    flex-direction: column;
+
+    .remove-btn {
+      align-self: flex-end;
+    }
+  }
+}
