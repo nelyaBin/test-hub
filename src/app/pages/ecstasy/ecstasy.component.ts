@@ -206,17 +206,33 @@ export class EcstasyComponent implements OnDestroy {
     this.duration.set(duration);
   }
 
-  onDurationUnitChanged(unit: DurationUnit): void {
-    const prevUnit = this.durationUnit();
-    if (prevUnit === unit) return;
+onDurationUnitChanged(unit: DurationUnit): void {
+  const prevUnit = this.durationUnit();
+  if (prevUnit === unit) return;
 
-    this.durationUnit.set(unit);
-    const normalizedPoints = this.calculatorService.normalizeToEnd(
-      this.controlPoints(),
-      this.totalDurationInMinutes()
-    );
-    this.controlPoints.set(normalizedPoints);
+  const currentDuration = this.duration();
+
+  let newDuration = currentDuration;
+
+  if (prevUnit === 'hours' && unit === 'minutes') {
+    newDuration = currentDuration * 60;
   }
+
+  if (prevUnit === 'minutes' && unit === 'hours') {
+    newDuration = currentDuration / 60;
+  }
+
+  this.durationUnit.set(unit);
+  this.duration.set(newDuration);
+
+  const normalizedPoints = this.calculatorService.normalizeToEnd(
+    this.controlPoints(),
+    unit === 'hours' ? newDuration * 60 : newDuration
+  );
+
+  this.controlPoints.set(normalizedPoints);
+}
+
 
   onScenarioTypeChanged(type: ScenarioType): void {
     this.scenarioType.set(type);
