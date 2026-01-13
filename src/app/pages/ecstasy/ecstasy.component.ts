@@ -314,10 +314,14 @@ onDurationUnitChanged(unit: DurationUnit): void {
       return `${Math.round(time)}m`;
     }
   }
-
+private openExternalTab(): void {
+  const url = 'https://grafana.example.com'; // או כל URL שאתה רוצה
+  window.open(url, '_blank');
+}
   // Test execution
   runTest(): void {
     if (!this.canRunTest()) return;
+     this.openExternalTab();
 
     const config: LoadTestConfiguration = {
       component: this.selectedComponent(),
