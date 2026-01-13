@@ -32,32 +32,29 @@
       Maximum concurrent virtual users
     </span>
   </div>
+<div class="config-field">
+  <label class="input-label">Duration</label>
 
-  <div class="input-group">
-    <label class="input-label">Duration</label>
-    <div class="duration-input-group">
-      <input
-        type="number"
-        class="config-input"
-        min="1"
-        [value]="duration()"
-        (input)="onDurationChange(+$any($event.target).value)"
-      />
-
-      @if (showHoursOption()) {
-        <select
-          class="config-select duration-unit"
-          [value]="durationUnit()"
-          (change)="onDurationUnitChange($any($event.target).value)"
-        >
-          <option value="minutes">Minutes</option>
-          <option value="hours">Hours</option>
-        </select>
-      } @else {
-        <span class="duration-unit-label">Minutes</span>
-      }
-    </div>
+  <div class="duration-input-group">
+    <input
+      type="number"
+      class="config-input"
+      min="1"
+      [value]="duration()"
+      (input)="onDurationChange(+$any($event.target).value)"
+    />
+    <select
+      class="config-select duration-unit"
+      [value]="durationUnit()"
+      [disabled]="!showHoursOption()"
+      [class.readonly]="!showHoursOption()"
+      (change)="onDurationUnitChange($any($event.target).value)"
+    >
+      <option value="minutes">Minutes</option>
+      <option value="hours">Hours</option>
+    </select>
   </div>
+</div>
 </div>
 
 <!-- Scenario Type -->
